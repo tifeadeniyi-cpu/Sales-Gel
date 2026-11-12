@@ -44,7 +44,7 @@ export const updateOrganizationSchema = z.object({
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
 
 export const inviteMemberSchema = z.object({
-  email: z.email("Enter a valid email").trim().toLowerCase(),
+  email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
   roleId: z.uuid("Choose a role"),
 });
 

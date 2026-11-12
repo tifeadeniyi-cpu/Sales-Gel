@@ -9,6 +9,7 @@ import { notificationPreferences, notifications } from "./schema";
 export const NOTIFICATION_EVENTS = {
   "member.joined": "Someone accepts your invitation",
   "member.role_changed": "Your role changes",
+  "customer.assigned": "A customer is assigned to you",
   "lead.assigned": "A lead is assigned to you",
   "task.assigned": "A task is assigned to you",
   "mention": "You're mentioned in a comment",

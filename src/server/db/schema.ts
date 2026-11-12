@@ -2,3 +2,4 @@
 export * from "@/server/auth/schema";
 export * from "@/domains/identity/schema";
 export * from "@/domains/platform/schema";
+export * from "@/domains/customers/schema";

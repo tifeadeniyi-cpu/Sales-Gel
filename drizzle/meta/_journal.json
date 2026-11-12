@@ -15,6 +15,27 @@
       "when": 1794450530674,
       "tag": "0001_tenant_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794460439827,
+      "tag": "0002_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794460523982,
+      "tag": "0003_customers",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794460524751,
+      "tag": "0004_customers_rls",
+      "breakpoints": true
     }
   ]
 }
