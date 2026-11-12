@@ -1,3 +1,8 @@
+import { listOrders } from "@/domains/commerce/orders";
+import { formatMoney } from "@/lib/money";
+import { can } from "@/server/authz/guards";
+import { Button } from "@/components/ui/button";
+import { PAYMENT_STATUS } from "../../orders/_components/labels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Archive, ArchiveRestore } from "lucide-react";
@@ -27,6 +32,7 @@ export default async function LeadPage({ params }: { params: Promise<{ orgSlug: 
     getLeadTimeline(ctx, id),
     perms.tasks ? listTasks(ctx, { scope: "all", status: "all", entityType: "lead", entityId: id }) : Promise.resolve([]),
   ]);
+  const leadOrders = can(ctx, "orders.read") ? await listOrders(ctx, { lead: lead.id }) : null;
   return (
     <>
       <Link href={`/o/${orgSlug}/leads`} className="text-sm text-primary hover:underline">← Leads</Link>
@@ -46,6 +52,29 @@ export default async function LeadPage({ params }: { params: Promise<{ orgSlug: 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2"><CardContent className="pt-5"><LeadPanel orgSlug={orgSlug} lead={lead} members={lookups.members} canWrite={perms.write} canAssign={perms.assign} /></CardContent></Card>
         <div className="space-y-6">
+          {leadOrders && (
+            <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                <CardTitle>Orders</CardTitle>
+                {can(ctx, "orders.write") && !lead.archivedAt && <Button asChild size="sm" variant={lead.status === "won" ? "default" : "outline"}><Link href={`/o/${orgSlug}/orders/new?lead=${lead.id}`}>Create order</Link></Button>}
+              </CardHeader>
+              <CardContent>
+                {leadOrders.rows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{lead.status === "won" ? "Won — create the order when you're ready. Orders are never created automatically." : "No orders linked yet."}</p>
+                ) : (
+                  <ul className="divide-y text-sm">
+                    {leadOrders.rows.map((o) => (
+                      <li key={o.id} className="flex items-center gap-2 py-2">
+                        <Link href={`/o/${orgSlug}/orders/${o.id}`} className="flex-1 font-medium hover:underline">ORD-{o.number}</Link>
+                        <Badge tone={PAYMENT_STATUS[o.paymentStatus].tone}>{PAYMENT_STATUS[o.paymentStatus].label}</Badge>
+                        {o.totalAmount !== null && <span className="font-medium">{formatMoney(o.totalAmount, o.currency)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
           {perms.tasks && (
             <Card>
               <CardHeader><CardTitle>Tasks</CardTitle></CardHeader>

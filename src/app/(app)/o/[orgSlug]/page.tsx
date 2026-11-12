@@ -8,6 +8,7 @@ import { listInvitations, listMembers } from "@/domains/identity/service";
 import { getCustomerStats } from "@/domains/customers/service";
 import { getLeadStats } from "@/domains/sales/service";
 import { getTaskStats } from "@/domains/tasks/service";
+import { getCommerceStats } from "@/domains/commerce/orders";
 import { formatMoney } from "@/lib/money";
 import { listAuditLogs } from "@/domains/platform/audit-queries";
 import { requireOrgContext } from "@/server/authz/request";
@@ -16,9 +17,6 @@ import { formatRelative } from "@/lib/utils";
 import { describeAudit } from "@/lib/audit-labels";
 
 const WIDGETS: { label: string; phase: number }[] = [
-  { label: "Revenue", phase: 4 },
-  { label: "Pending orders", phase: 4 },
-  { label: "Unpaid orders", phase: 4 },
   { label: "Unread conversations", phase: 8 },
   { label: "Open tickets", phase: 5 },
   { label: "SLA breaches", phase: 7 },
@@ -37,12 +35,17 @@ export default async function CommandCenter({ params }: { params: Promise<{ orgS
     can(ctx, "audit.read") ? listAuditLogs(ctx, { limit: 8 }) : Promise.resolve(null),
   ]);
   const customerStats = can(ctx, "customers.read") || can(ctx, "customers.read_assigned") ? await getCustomerStats(ctx) : null;
-  const [leadStats, taskStats] = await Promise.all([getLeadStats(ctx), getTaskStats(ctx)]);
+  const [leadStats, taskStats, commerceStats] = await Promise.all([getLeadStats(ctx), getTaskStats(ctx), getCommerceStats(ctx)]);
   const moneyText = (t: Record<string, number>) => Object.entries(t).map(([c, v]) => formatMoney(v, c)).join(" · ") || "—";
   const live: { label: string; value: string; href: string; tone?: string }[] = [];
   if (leadStats) {
     live.push({ label: "Active leads", value: String(leadStats.active), href: `${base}/leads` });
     live.push({ label: "Pipeline value", value: moneyText(leadStats.pipelineValue), href: `${base}/leads` });
+  }
+  if (commerceStats) {
+    if (commerceStats.netRevenue) live.push({ label: "Revenue (30 days)", value: moneyText(commerceStats.netRevenue) === "—" ? formatMoney(0, ctx.defaultCurrency) : moneyText(commerceStats.netRevenue), href: `${base}/orders` });
+    live.push({ label: "Pending orders", value: String(commerceStats.pendingOrders), href: `${base}/orders` });
+    live.push({ label: "Unpaid orders", value: String(commerceStats.unpaidOrders), href: `${base}/orders?view=pending_payment`, tone: commerceStats.unpaidOrders > 0 ? "text-warning" : undefined });
   }
   if (taskStats) {
     live.push({ label: "My tasks due today", value: String(taskStats.dueToday), href: `${base}/tasks?due=today` });

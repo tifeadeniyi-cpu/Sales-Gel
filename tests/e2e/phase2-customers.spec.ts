@@ -58,8 +58,8 @@ test("inline edits persist, notes and timeline record activity", async ({ page }
   await expect(page.getByText("added a note")).toBeVisible();
   await expect(page.getByText("companyName: — → Obi Foods")).toBeVisible();
 
-  await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Orders" }).click();
-  await expect(page.getByText("Orders arrive in Phase 4")).toBeVisible();
+  await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Tickets" }).click();
+  await expect(page.getByText("Tickets arrive in Phase 5")).toBeVisible();
 });
 
 test("list search, drawer with deep link, and global search", async ({ page }) => {

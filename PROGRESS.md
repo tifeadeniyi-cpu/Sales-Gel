@@ -8,8 +8,8 @@ _Last updated: 2026-11-12 (Phase 3)_
 | **1** | **Foundation** | ✅ **Implemented and verified** |
 | **2** | **Customers** | ✅ **Implemented and verified** |
 | **3** | **Sales CRM + Tasks** | ✅ **Implemented and verified** |
-| 4 | Commerce | ⏳ Next |
-| 5 | Support core | Not started |
+| **4** | **Commerce** | ✅ **Implemented and verified** |
+| 5 | Support core | ⏳ Next |
 | 6 | Commerce integrations (Shopify, payments, job infrastructure) | Not started |
 | 7 | Support forms, portal, SLA, routing | Not started |
 | 8 | Unified inbox | Not started |
@@ -134,3 +134,47 @@ _Last updated: 2026-11-12 (Phase 3)_
 - **Overdue and reminder notifications** need the background job scheduler (Phase 6). Overdue tasks are highlighted everywhere and counted on the Command Center today.
 - Linking won leads to orders: Phase 4.
 - Saved views / column configuration: still pending (shared table work).
+
+---
+
+## Phase 4 completion report: Products, Orders, Payments & Fulfillment
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | stores (one "Manual" store per org, partial unique index), products, product_variants (SKU unique per org, case-insensitive, archived variants excluded), orders, order_items, payments, refunds, fulfillments, fulfillment_items. Composite tenant FKs, forced RLS on all. DB CHECKs: `total = subtotal − discount + tax + shipping`, `refunded ≤ paid`, line totals consistent. ORD-numbers per org | Migrations 0007–0008; integration (CHECK violation rejected; cross-tenant) |
+| Money rules | Integer minor units + currency everywhere; totals computed once on the server (line discounts → order discount → tax in basis points on the discounted amount, rounded half away from zero → shipping); amounts in different currencies are never added together. Dashboards show one figure per currency | 39 unit tests on the math; integration totals test |
+| Catalog | Products with variants, SKUs, prices, optional stock count, category, brand, image link, tags, active/draft/archived. Editing prices never changes existing orders (order lines are snapshots). Removing a variant archives it. Product page shows units sold, booked value and recent orders | Integration + E2E |
+| Order creation | 3-step wizard (customer → items → review & details): catalog search, custom items, quantity, line and order discounts, tax %, shipping, delivery method and address, contact, notes, assignee, sales channel; live total preview using the same math as the server. Variants must be active and priced in the order's currency. Created **unpaid** | Integration + E2E (Scenario 1) |
+| Leads → orders | "Create order" on a lead pre-links the lead and its customer; a won lead **never** creates an order automatically; order appears on the lead page and in both timelines | Integration + E2E |
+| Payments | Staff-recorded payments only (cash, bank transfer, card/POS, mobile money, other), clearly labelled "Manual / Recorded by …"; amount can't exceed the balance due; no future dates; payment status is **derived** from recorded money (unpaid → partially paid → paid), never toggled. Voiding a mistaken manual payment keeps it visible, struck through with the reason, and is blocked if refunds depend on it | Integration + E2E (overpayment refused, prefilled balance) |
+| Refunds | Separate `refunds.issue` permission (Owner/Admin by default; not sales managers, not support agents); reason required; capped at paid − refunded and at the chosen payment's remaining amount; status moves to partially refunded / refunded | Integration + E2E |
+| Append-only ledger | The app's database role can't UPDATE or DELETE payments or refunds (only the three void columns on payments) | Integration (permission denied at DB level) |
+| Fulfillment | Partial or full fulfillment per item with carrier, tracking number/link, shipped/delivered/picked up; can't fulfill more than ordered; "mark delivered"; fulfillment status derived from quantities | Integration + E2E |
+| Order lifecycle | Items and prices editable only while unpaid and unfulfilled; complete (with a warning if a balance is still due — completing never marks anything paid), reopen; cancel requires everything refunded and nothing fulfilled, with a reason | Integration |
+| Orders list | Views: All, Manual, Pending payment, Ready to fulfill, In fulfillment, Completed, Cancelled, Refunded; search by ORD-number or customer; pagination; drawer with actions; 30-day stats (net revenue = payments − refunds, orders, awaiting payment, awaiting fulfillment) | Integration + E2E |
+| Customer profile | Real lifetime spending (paid − refunded, per currency), total orders, average order and last purchase replace the Phase 4 placeholders; Orders tab; recent orders on the overview; "New order" from the profile; **customer merge moves orders and undo moves them back** | Integration + E2E |
+| Command Center | Live Revenue (30 days), Pending orders, Unpaid orders widgets; "Order" in quick create | E2E |
+| Permissions & masking | Users without `orders.financials` (support agents, sales reps) see orders but every amount, payment and refund is hidden server-side; payment recording needs `payments.record` + financials; customer names masked when the customer isn't visible to the user | Integration + E2E (support agent sees no money, no refund/payment buttons, can't open New order) |
+| Tenant isolation | Orders, variants and customers from another org can't be read, paid, refunded or ordered against; raw SQL under RLS returns nothing | Integration |
+
+**Test totals:** 118 unit/integration tests and 30 end-to-end tests. All passing, along with lint, typecheck and the production build.
+
+Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting during a panel remount, a completed task leaving the "open" view, navigating before sign-out finished) now wait for stable state; repeated runs pass.
+
+### Implemented but not fully tested
+- Editing order items after creation (`updateOrderItems`) and order detail edits (`updateOrderDetails`) are covered by integration tests, but there's no edit UI yet — orders are edited by cancelling and re-creating while unpaid.
+- Void payment and "mark delivered" buttons work in the UI; covered by integration tests, not E2E.
+
+### Blocked by credentials or external setup (Phase 6)
+- **Shopify / WooCommerce order and product sync**, and **Stripe / Paystack / Flutterwave payment links**: need store and provider credentials and the webhook + job infrastructure. Until then there is no "send payment link" button, and provider payments can only ever be created from verified webhooks — never from a click.
+- Stock is a recorded number only; automatic decrement and store inventory sync arrive with store integrations.
+
+### Not yet implemented (later phases)
+- Order-related support tickets (Phase 5), order notifications to customers by email/WhatsApp (Phases 8–9), invoices/receipts PDF, returns workflow beyond refunds, multi-store management UI.
+- Product image upload (needs file storage, Phase 5); image links work today.
+
+### Known limitations
+- Tax is a single rate per order (no per-line tax classes or tax-inclusive pricing).
+- Revenue figures are per currency; there is no currency conversion by design.

@@ -71,6 +71,9 @@ test("lead drawer: reopen, edit inline, add a task linked to the lead", async ({
   await expect(drawer.getByText("Reason: Price too high")).toBeVisible();
   await drawer.getByRole("button", { name: "Reopen" }).click();
   await expect(page.getByText("Stage updated")).toBeVisible();
+  // The panel remounts with the reopened lead; wait for that before editing.
+  await expect(drawer.getByText("Reason: Price too high")).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "Reopen" })).toHaveCount(0);
   await drawer.getByRole("button", { name: "Edit Expected close" }).click();
   await drawer.getByLabel("Expected close", { exact: true }).fill("2026-12-20");
   await drawer.getByRole("button", { name: "Save Expected close" }).click();
@@ -90,9 +93,10 @@ test("tasks page: complete with the check circle, calendar and board views, cust
   await page.goto(`/o/${slug}/tasks`);
   await expect(page.getByText("Send tasting menu")).toBeVisible();
   await page.getByRole("checkbox", { name: "Mark “Send tasting menu” as done" }).click();
-  await expect(page.getByRole("checkbox", { name: "Mark “Send tasting menu” as not done" })).toBeVisible();
+  // Open view drops the task once the server confirms; then it appears under Done, checked.
+  await expect(page.getByText("Send tasting menu")).toHaveCount(0);
   await page.getByLabel("Status").selectOption("done");
-  await expect(page.getByText("Send tasting menu")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Mark “Send tasting menu” as not done" })).toBeVisible();
 
   await page.getByRole("button", { name: "Calendar view" }).click();
   await page.goto(`/o/${slug}/tasks?view=calendar&month=2026-12&status=all`);
@@ -133,8 +137,7 @@ test("sales reps can't open pipeline settings", async ({ page }) => {
   await dialog.getByRole("button", { name: "Create invitation" }).click();
   const link = await page.getByLabel("Invitation link").inputValue();
   await page.getByRole("button", { name: "Done" }).click();
-  await page.getByRole("button", { name: "Account menu" }).click();
-  await page.getByRole("menuitem", { name: "Sign out" }).click();
+  await page.context().clearCookies(); // start the invitee in a clean, signed-out session
   const path = new URL(link).pathname;
   await page.goto(`/sign-up?next=${encodeURIComponent(path)}&email=${encodeURIComponent(rep.email)}`);
   await page.getByLabel("Your name").fill(rep.name);

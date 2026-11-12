@@ -13,7 +13,7 @@ export interface NavItem {
   description: string;
 }
 
-export const CURRENT_PHASE = 3;
+export const CURRENT_PHASE = 4;
 
 export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {

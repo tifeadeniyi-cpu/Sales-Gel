@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 import Link from "next/link";
-import { Bell, CheckCircle2, CircleHelp, KanbanSquare, LogOut, Plus, Search, Settings, UserPlus, UserRound } from "lucide-react";
+import { Bell, CheckCircle2, CircleHelp, KanbanSquare, LogOut, Plus, Search, Settings, ShoppingBag, UserPlus, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ export function Topbar({
   canCreateCustomer,
   canCreateLead,
   canCreateTask,
+  canCreateOrder,
   mobileNav,
 }: {
   orgSlug: string;
@@ -26,6 +27,7 @@ export function Topbar({
   canCreateCustomer: boolean;
   canCreateLead: boolean;
   canCreateTask: boolean;
+  canCreateOrder?: boolean;
   mobileNav?: React.ReactNode;
 }) {
   const base = `/o/${orgSlug}`;
@@ -62,6 +64,13 @@ export function Topbar({
               <DropdownMenuItem asChild>
                 <Link href={`${base}/leads`}>
                   <KanbanSquare /> Lead
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {canCreateOrder && (
+              <DropdownMenuItem asChild>
+                <Link href={`${base}/orders/new`}>
+                  <ShoppingBag /> Order
                 </Link>
               </DropdownMenuItem>
             )}

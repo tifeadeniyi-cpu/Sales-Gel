@@ -11,6 +11,9 @@ import { can, canAny } from "@/server/authz/guards";
 import { listLeads, listPipelines } from "@/domains/sales/service";
 import { listTasks } from "@/domains/tasks/service";
 import { formatMoney } from "@/lib/money";
+import { getCustomerCommerce, listOrders } from "@/domains/commerce/orders";
+import { OrderTable } from "../../orders/_components/order-table";
+import { Button } from "@/components/ui/button";
 import { RelatedTasks } from "../../tasks/_components/related-tasks";
 import { NewLeadDialog } from "../../leads/_components/new-lead-dialog";
 import { describeAudit } from "@/lib/audit-labels";
@@ -25,9 +28,7 @@ import { customerPerms, loadCustomerLookups } from "../_components/load";
 
 const LATER_TABS: Record<string, { label: string; phase: number; what: string }> = {
   conversations: { label: "Conversations", phase: 8, what: "Messages from email, WhatsApp, Instagram and Messenger" },
-  orders: { label: "Orders", phase: 4, what: "Online and manual orders" },
   tickets: { label: "Tickets", phase: 5, what: "Support tickets" },
-  payments: { label: "Payments", phase: 4, what: "Payments and refunds" },
   files: { label: "Files", phase: 5, what: "Attachments" },
 };
 
@@ -45,7 +46,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     tab === "notes" || tab === "overview" ? listNotes(ctx, c.id) : Promise.resolve([]),
     tab === "timeline" ? getCustomerTimeline(ctx, c.id) : Promise.resolve([]),
   ]);
-  if (!["overview", "timeline", "notes", "leads", "tasks", ...Object.keys(LATER_TABS)].includes(tab)) redirect(`${base}/${c.id}`);
+  if (!["overview", "timeline", "notes", "leads", "tasks", "orders", ...Object.keys(LATER_TABS)].includes(tab)) redirect(`${base}/${c.id}`);
   const canLeads = canAny(ctx, "leads.read", "leads.read_assigned");
   const canTasks = can(ctx, "tasks.read");
   const [customerLeads, customerTasks, pipelines] = await Promise.all([
@@ -53,6 +54,12 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     canTasks && (tab === "tasks" || tab === "overview") ? listTasks(ctx, { scope: "all", status: "all", entityType: "customer", entityId: c.id }) : Promise.resolve([]),
     canLeads && tab === "leads" ? listPipelines(ctx) : Promise.resolve([]),
   ]);
+  const canOrders = can(ctx, "orders.read");
+  const [commerce, customerOrders] = await Promise.all([
+    canOrders ? getCustomerCommerce(ctx, c.id) : Promise.resolve(null),
+    canOrders && (tab === "orders" || tab === "overview") ? listOrders(ctx, { customer: c.id, pageSize: tab === "orders" ? 100 : 25 }) : Promise.resolve(null),
+  ]);
+  const lifetime = commerce?.byCurrency.filter((b) => b.lifetimeNet !== null) ?? [];
   const memberOpts = lookups.members.map((m) => ({ membershipId: m.membershipId, name: m.name }));
 
   const tabs = [
@@ -61,6 +68,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     { key: "notes", label: `Notes${notes.length ? ` (${notes.length})` : ""}` },
     ...(canLeads ? [{ key: "leads", label: "Leads" }] : []),
     ...(canTasks ? [{ key: "tasks", label: "Tasks" }] : []),
+    ...(canOrders ? [{ key: "orders", label: `Orders${commerce?.totalOrders ? ` (${commerce.totalOrders})` : ""}` }] : []),
     ...Object.entries(LATER_TABS).map(([key, t]) => ({ key, label: t.label })),
   ].map((t) => ({ ...t, href: t.key === "overview" ? `${base}/${c.id}` : `${base}/${c.id}?tab=${t.key}` }));
   const editable = perms.write && c.status !== "merged";
@@ -97,18 +105,28 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
         {tab === "overview" && (
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                {[
-                  ["Lifetime spending", 4], ["Total orders", 4], ["Average order", 4], ["Last purchase", 4], ["Open tickets", 5],
-                ].map(([label, phase]) => (
-                  <Card key={label as string} className="bg-card/60">
-                    <CardContent className="p-3">
-                      <div className="text-xs text-muted-foreground">{label}</div>
-                      <div className="mt-1 text-xs text-muted-foreground"><Badge tone="inactive">Phase {phase}</Badge></div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {canOrders && commerce ? (
+                  <>
+                    <Metric label="Lifetime spending" value={lifetime.length ? lifetime.map((b) => formatMoney(b.lifetimeNet, b.currency)).join(" · ") : commerce.byCurrency.length && !lifetime.length ? "Hidden" : formatMoney(0, c.preferredCurrency ?? ctx.defaultCurrency)} hint="Paid minus refunds" />
+                    <Metric label="Total orders" value={String(commerce.totalOrders)} />
+                    <Metric label="Average order" value={lifetime.length ? lifetime.map((b) => formatMoney(b.averageOrder, b.currency)).join(" · ") : "—"} />
+                    <Metric label="Last purchase" value={commerce.lastPurchase ? formatRelative(commerce.lastPurchase) : "—"} />
+                  </>
+                ) : null}
+                <Card className="bg-card/60">
+                  <CardContent className="p-3">
+                    <div className="text-xs text-muted-foreground">Open tickets</div>
+                    <div className="mt-1 text-xs text-muted-foreground"><Badge tone="inactive">Phase 5</Badge></div>
+                  </CardContent>
+                </Card>
               </div>
+              {canOrders && customerOrders && customerOrders.rows.length > 0 && (
+                <Card>
+                  <CardHeader className="flex-row items-center justify-between"><CardTitle>Recent orders</CardTitle><Link href={`${base}/${c.id}?tab=orders`} className="text-sm text-primary hover:underline">All orders</Link></CardHeader>
+                  <CardContent className="px-0"><OrderTable rows={customerOrders.rows.slice(0, 5)} linkBase={`/o/${orgSlug}/orders`} /></CardContent>
+                </Card>
+              )}
               {canLeads && (
                 <Card>
                   <CardHeader><CardTitle>Open leads</CardTitle></CardHeader>
@@ -189,6 +207,18 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
           <Card><CardContent className="pt-5"><RelatedTasks orgSlug={orgSlug} tasks={customerTasks} members={memberOpts} currentMembershipId={ctx.membershipId} relation={{ type: "customer", id: c.id, label: c.displayName }} canWrite={can(ctx, "tasks.write") && c.status !== "merged"} canSearchLeads={canLeads} canSearchCustomers /></CardContent></Card>
         )}
 
+        {tab === "orders" && canOrders && customerOrders && (
+          <Card className="overflow-hidden">
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle>Orders & payments</CardTitle>
+              {can(ctx, "orders.write") && c.status !== "merged" && <Button asChild size="sm"><Link href={`/o/${orgSlug}/orders/new?customer=${c.id}`}>New order</Link></Button>}
+            </CardHeader>
+            <CardContent className="px-0">
+              {customerOrders.rows.length === 0 ? <p className="px-6 text-sm text-muted-foreground">No orders for this customer yet.</p> : <OrderTable rows={customerOrders.rows} linkBase={`/o/${orgSlug}/orders`} />}
+            </CardContent>
+          </Card>
+        )}
+
         {tab === "notes" && (
           <Card><CardContent className="pt-5"><NotesPanel orgSlug={orgSlug} customerId={c.id} notes={notes} currentUserId={ctx.userId} canWrite={editable} canDeleteAny={perms.archive} /></CardContent></Card>
         )}
@@ -228,5 +258,17 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
         )}
       </div>
     </>
+  );
+}
+
+function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="mt-0.5 truncate font-semibold" title={value} data-testid={`metric-${label.toLowerCase().replace(/\s+/g, "-")}`}>{value}</div>
+        {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
+      </CardContent>
+    </Card>
   );
 }
