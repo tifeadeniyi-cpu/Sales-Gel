@@ -18,7 +18,7 @@ The phone module links calls to customers, leads, **orders** and **support ticke
 | P8 Recordings + compliance | P6; legal review of consent rules per state |
 | P9 Usage billing, analytics, fraud | Billing (11) |
 
-Recommended slot: **after CRM Phase 8 (Unified Inbox)**, which builds the shared conversation/channel and webhook plumbing that calls reuse. Phone P1–P4 can start right after CRM Phase 6 if calling is a priority.
+**Confirmed slot: right after CRM Phase 8 (Unified Inbox)**, which builds the shared conversation/channel and webhook plumbing that calls reuse. Phone P1–P4 can start right after CRM Phase 6 if calling is a priority.
 
 ## Design commitments (from the spec)
 

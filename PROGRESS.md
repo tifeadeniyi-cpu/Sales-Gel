@@ -16,7 +16,7 @@ _Last updated: 2026-11-12 (Phase 3)_
 | 9 | Marketing & automation | Not started |
 | 10 | Analytics, knowledge base | Not started |
 | 11 | Billing & production hardening | Not started |
-| Add-on | Phone & Calls (Twilio): see `docs/06-phone-system-plan.md` | Planned (9 sub-phases, after Phase 8) |
+| 8b | Phone & Calls (Twilio): see `docs/06-phone-system-plan.md` | Planned: confirmed to run right after Phase 8 |
 
 ---
 
