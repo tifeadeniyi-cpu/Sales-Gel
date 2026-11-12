@@ -13,7 +13,12 @@ function createDb(): Database {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
   const client =
-    globalForDb.__crmSql ?? postgres(url, { max: Number(process.env.DB_POOL_MAX ?? 10), onnotice: () => {} });
+    globalForDb.__crmSql ?? postgres(url, {
+      max: Number(process.env.DB_POOL_MAX ?? 10),
+      // Transaction-mode poolers (e.g. Neon's pooled endpoint) need prepared statements off.
+      prepare: process.env.DB_PREPARE !== "false",
+      onnotice: () => {},
+    });
   globalForDb.__crmSql = client;
   return drizzle(client, { schema });
 }

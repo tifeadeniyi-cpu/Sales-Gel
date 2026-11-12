@@ -4,7 +4,10 @@ import { runAction, str, type ActionResult } from "@/server/actions";
 import { requireOrgContext } from "@/server/authz/request";
 import * as identity from "@/domains/identity/service";
 
-const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+const appUrl = () =>
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.BETTER_AUTH_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
 const refresh = (slug: string) => revalidatePath(`/o/${slug}`, "layout");
 
 export async function inviteMemberAction(

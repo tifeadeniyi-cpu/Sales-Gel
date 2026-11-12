@@ -5,9 +5,16 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/server/db/client";
 import { account, session, user, verification } from "./schema";
 
+const https = (host?: string) => (host ? `https://${host}` : undefined);
+// On Vercel, previews get their own hostnames; trust them alongside the configured base URL.
+const vercelOrigins = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL]
+  .map(https)
+  .filter((o): o is string => !!o);
+
 export const auth = betterAuth({
   appName: "Commerce CRM",
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL: process.env.BETTER_AUTH_URL ?? https(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+  trustedOrigins: vercelOrigins,
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
