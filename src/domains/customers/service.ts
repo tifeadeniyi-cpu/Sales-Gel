@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, exists, ilike, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { memberships } from "@/domains/identity/schema";
 import { auditLogs } from "@/domains/platform/schema";
 import { notify } from "@/domains/platform/notifications";
@@ -238,6 +238,17 @@ export async function setCustomerArchived(ctx: OrgContext, id: string, archived:
   });
 }
 
+export async function setCustomerTagNames(ctx: OrgContext, id: string, tagNames: string[]) {
+  requirePerm(ctx, "customers.write");
+  const names = tagNames.map((n) => parseInput(tagSchema, { name: n }).name);
+  return withTenant(ctx, async (tx) => {
+    await loadForWrite(tx, ctx, id);
+    const before = (await tx.select({ name: tags.name }).from(customerTags).innerJoin(tags, eq(tags.id, customerTags.tagId)).where(eq(customerTags.customerId, id))).map((t) => t.name);
+    await setCustomerTags(tx, ctx.orgId, id, await ensureTags(tx, ctx.orgId, names));
+    await audit(tx, ctx, { action: "customer.tags_changed", entityType: "customer", entityId: id, changes: { tags: { from: before.sort(), to: [...names].sort() } } });
+  });
+}
+
 /* ───────────────────────── Bulk ───────────────────────── */
 
 const MAX_BULK = 500;
@@ -395,11 +406,11 @@ export async function listCustomers(ctx: OrgContext, filters: CustomerListFilter
 }
 
 /** Ids in the current list order, for drawer Previous/Next. Capped to keep it cheap. */
-export async function listCustomerIds(ctx: OrgContext, filters: CustomerListFilters = {}) {
+export async function listCustomerIds(ctx: OrgContext, filters: CustomerListFilters = {}, limit = 2000) {
   assertCanRead(ctx);
   const f = parseInput(listFiltersSchema, filters);
   return withTenant(ctx, async (tx) =>
-    (await tx.select({ id: customers.id }).from(customers).where(listWhere(ctx, f)).orderBy(...ORDER[f.sort]).limit(2000)).map((r) => r.id),
+    (await tx.select({ id: customers.id }).from(customers).where(listWhere(ctx, f)).orderBy(...ORDER[f.sort]).limit(limit)).map((r) => r.id),
   );
 }
 

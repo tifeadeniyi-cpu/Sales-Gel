@@ -22,7 +22,7 @@ export default async function OrgLayout({ children, params }: { children: React.
       <LastOrgCookie slug={orgSlug} />
       <Sidebar {...navProps} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar orgSlug={orgSlug} user={user} unread={unread} canInvite={can(ctx, "members.manage")} mobileNav={<MobileNav {...navProps} />} />
+        <Topbar orgSlug={orgSlug} user={user} unread={unread} canInvite={can(ctx, "members.manage")} canCreateCustomer={can(ctx, "customers.write")} mobileNav={<MobileNav {...navProps} />} />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>

@@ -16,6 +16,7 @@ import { customerEmails, customerIdentities, customerPhones, customers, customer
 import { CUSTOMER_SOURCES, IDENTITY_PROVIDERS, type CustomerListFilters } from "./validation";
 
 export const MAX_IMPORT_ROWS = 5000;
+export const MAX_EXPORT_ROWS = 50_000;
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export const IMPORT_FIELDS = {
@@ -236,7 +237,7 @@ export function csvSafe(value: unknown): string {
 export async function exportCustomersCsv(ctx: OrgContext, filters: CustomerListFilters): Promise<{ csv: string; count: number }> {
   requirePerm(ctx, "customers.export");
   assertCanRead(ctx);
-  const ids = await listCustomerIds(ctx, filters);
+  const ids = await listCustomerIds(ctx, filters, MAX_EXPORT_ROWS);
   const defs = await listCustomFields(ctx);
   const csv = await withTenant(ctx, async (tx) => {
     const rows = ids.length

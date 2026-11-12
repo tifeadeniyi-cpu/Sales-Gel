@@ -1,13 +1,13 @@
 # Progress & Phase Status
 
-_Last updated: 2026-11-11_
+_Last updated: 2026-11-12_
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Planning docs (architecture, schema, authz, routes, components, deps, tests, external APIs) | ✅ Done (`docs/`) |
 | **1** | **Foundation** | ✅ **Implemented and verified** |
-| 2 | Customers | ⏳ Next |
-| 3 | Sales CRM + Tasks | Not started |
+| **2** | **Customers** | ✅ **Implemented and verified** |
+| 3 | Sales CRM + Tasks | ⏳ Next |
 | 4 | Commerce | Not started |
 | 5 | Support core | Not started |
 | 6 | Commerce integrations (Shopify, payments, job infrastructure) | Not started |
@@ -59,3 +59,43 @@ _Last updated: 2026-11-11_
 - The `user` table is global (Better Auth). The app role can read it, but services only expose users through memberships of the caller's org.
 - Workspace URL (slug) can't be changed after creation (so links stay stable).
 - shadcn components were hand-vendored because the shadcn registry was unreachable from the build sandbox. `components.json` is present for future `shadcn add`.
+
+---
+
+## Phase 2 completion report: Customers & Contacts
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | 12 tables (customers, emails, phones, social identities, addresses, tags, customer_tags, consents, notes, merges, duplicate dismissals, custom field definitions), all with composite tenant FKs and forced RLS. Trigram indexes for search. Per-org customer numbers (CUS-1001…). Owner FK nulls only the owner column when a member is removed | Migrations 0002–0004; `drizzle-kit check`; cross-tenant integration tests |
+| Create / edit | Multi-email/phone/handle/address form; provisional contacts from just a social handle; business vs person; required-field and type rules; display name derived automatically; live "possible duplicate" warning while typing | Integration + E2E (empty record refused with explanation) |
+| Customer list | Search across name, company, email, phone digits, @handle and CUS-number; views (Active / Provisional / Archived / All); filters (owner, tag, source, type, marketing status); 6 sorts; pagination; list and card layouts; multi-select bulk assign / tag / untag / archive / restore; inline source and owner editing | Integration + E2E |
+| Record drawer | Opens from the list via `?open=` and keeps search, filters and scroll position; prev/next (also `j`/`k`), copy link, expand to full page; deep links reopen it | E2E |
+| Customer detail | Overview, Timeline, Notes tabs, plus clearly labelled tabs for modules arriving later. Inline editing with saving state, rollback and server error messages; tag editor; consent panel; merge history with undo | E2E (edits persist after reload) |
+| Notes | Add, pin, author-only edit, author-or-manager delete; all on the timeline | Integration + E2E |
+| Marketing consent | Append-only consent history (app role can't update or delete it); email marketing status mirrors the latest entry | Integration (UPDATE/DELETE denied) |
+| Duplicates & merge (Scenario 5) | Suggestions from exact normalized email, E.164 phone or platform+handle; never auto-merged; "not a duplicate" dismissal. Merge moves identifiers (without duplicating shared values), addresses, notes, consents and tags; fills only empty fields; the most restrictive marketing consent wins; full snapshot kept for **undo merge**; chained merges must be undone in order; merged records are read-only and point to the survivor. Mover registry ready for leads, orders, tickets and tasks | Integration + E2E (merge then undo via UI) |
+| Import | CSV up to 5,000 rows / 5 MB, drag-and-drop, automatic column mapping (including custom fields), duplicate handling (skip / fill missing details / create), per-row error report; every row commits independently | Integration + E2E |
+| Export | Filter-aware CSV (up to 50,000 rows), spreadsheet formula-injection protection, audit-logged, permission-gated | Integration + E2E (download contents checked; another org gets 404) |
+| Custom fields | Text, number, date, dropdown, yes/no; required flag; key and type immutable; archive keeps stored values; validated on every write | Integration + E2E |
+| Tags | Created on the fly (case-insensitive, no duplicates) or in settings; colors; usage counts; delete | Integration |
+| Permissions | `read` vs `read_assigned` enforced in every query (assigned-only users get 404 for others' customers and own what they create); write, archive, merge, import and export each gated | Integration |
+| Global search | Top bar search → results page (customers today; other modules plug in later) | E2E |
+| Command Center | Real "New customers (30 days)" and "Active customers" widgets | Build + render |
+| Notifications | `customer.assigned` when someone is made owner (single or bulk) | Integration |
+
+**Test totals:** 71 unit/integration tests and 19 end-to-end tests (11 Phase 1 + 8 Phase 2). All passing.
+
+### Implemented but not fully tested
+- Keyboard shortcuts in the drawer (`j`/`k`) and the browser "unsaved changes" warning.
+- Imports run inside the web request. That's fine at 5,000 rows, but larger files should move to background jobs (Phase 6).
+
+### Blocked by credentials or external setup
+- Org logo and customer file attachments need S3-compatible storage credentials (Files tab is labelled as arriving later).
+- Email sending (unchanged from Phase 1).
+
+### Not yet implemented
+- Lifetime spend, order count, AOV and last purchase on the overview: they need Orders (Phase 4) and are shown as Phase 4 placeholders, not fake numbers.
+- Saved views and column configuration on the list (shared DataTable work planned with Leads in Phase 3).
+- Customer portal identity and external-platform identity sync (Phases 6–8).

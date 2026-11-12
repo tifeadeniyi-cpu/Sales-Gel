@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 import Link from "next/link";
-import { Bell, CircleHelp, LogOut, Plus, Search, Settings, UserPlus } from "lucide-react";
+import { Bell, CircleHelp, LogOut, Plus, Search, Settings, UserPlus, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,28 +14,30 @@ export function Topbar({
   user,
   unread,
   canInvite,
+  canCreateCustomer,
   mobileNav,
 }: {
   orgSlug: string;
   user: { name: string; email: string; image: string | null };
   unread: number;
   canInvite: boolean;
+  canCreateCustomer: boolean;
   mobileNav?: React.ReactNode;
 }) {
   const base = `/o/${orgSlug}`;
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
       {mobileNav}
-      <div className="relative max-w-md flex-1">
+      <form action={`${base}/search`} method="get" role="search" className="relative max-w-md flex-1">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
-          disabled
-          placeholder="Search arrives with Customers (Phase 2)"
-          aria-label="Global search (available in Phase 2)"
-          className="h-9 w-full rounded-md border bg-muted/50 pl-8 pr-3 text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed"
+          name="q"
+          placeholder="Search customers…"
+          aria-label="Global search"
+          className="h-9 w-full rounded-md border bg-muted/50 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:bg-card"
         />
-      </div>
+      </form>
       <div className="ml-auto flex items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -45,6 +47,13 @@ export function Topbar({
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuLabel>Quick create</DropdownMenuLabel>
+            {canCreateCustomer && (
+              <DropdownMenuItem asChild>
+                <Link href={`${base}/customers/new`}>
+                  <UserRound /> Customer
+                </Link>
+              </DropdownMenuItem>
+            )}
             {canInvite && (
               <DropdownMenuItem asChild>
                 <Link href={`${base}/team?invite=1`}>
@@ -53,7 +62,7 @@ export function Topbar({
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="font-normal">Customer, lead, order, ticket and task creation arrive in Phases 2–5.</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal">Lead, order, ticket and task creation arrive in Phases 3–5.</DropdownMenuLabel>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="ghost" size="icon" asChild>
