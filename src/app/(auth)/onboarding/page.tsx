@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireUser } from "@/server/auth/session";
 import { OrgForm } from "./org-form";
 
-export const metadata: Metadata = { title: "Create workspace · Commerce CRM" };
+export const metadata: Metadata = { title: "Create workspace · SalesGel" };
 
 export default async function OnboardingPage() {
   const user = await requireUser();

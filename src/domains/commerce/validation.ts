@@ -115,6 +115,13 @@ export const orderFiltersSchema = z.object({
   view: z.enum(ORDER_VIEWS).default("all"),
   q: z.string().trim().max(120).optional(),
   customer: z.uuid().optional(),
+  /** Placed-at window (ISO timestamps) — dashboard drill-downs. */
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
+  /** Orders with a payment or refund recorded in this window (revenue drill-down). */
+  moneyFrom: z.iso.datetime({ offset: true }).optional(),
+  moneyTo: z.iso.datetime({ offset: true }).optional(),
+  assignee: z.uuid().optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   pageSize: z.coerce.number().int().refine((n) => [25, 50, 100].includes(n)).default(25),
 });

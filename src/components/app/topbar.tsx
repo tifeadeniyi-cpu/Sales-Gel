@@ -1,7 +1,9 @@
 "use client";
 import type React from "react";
 import Link from "next/link";
-import { Bell, CheckCircle2, CircleHelp, KanbanSquare, LogOut, Plus, Search, Settings, ShoppingBag, Ticket, UserPlus, UserRound } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { NAV_GROUPS } from "./nav-config";
+import { Bell, CheckCircle2, CircleHelp, Filter, KanbanSquare, LogOut, Plus, Search, Settings, ShoppingBag, Ticket, UserPlus, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,23 +35,37 @@ export function Topbar({
   mobileNav?: React.ReactNode;
 }) {
   const base = `/o/${orgSlug}`;
+  const pathname = usePathname();
+  const rest = pathname.slice(base.length).replace(/^\//, "");
+  const items = NAV_GROUPS.flatMap((g) => g.items);
+  const section = items
+    .filter((i) => (i.path ? rest === i.path || rest.startsWith(`${i.path}/`) : rest === ""))
+    .sort((a, b) => b.path.length - a.path.length)[0];
+  const isRecord = section && rest !== section.path && rest.split("/").length > section.path.split("/").filter(Boolean).length;
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur lg:px-6">
       {mobileNav}
-      <form action={`${base}/search`} method="get" role="search" className="relative max-w-md flex-1">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <nav aria-label="Breadcrumb" className="hidden min-w-0 shrink-0 text-sm xl:block">
+        {section ? (
+          isRecord ? (
+            <span className="flex items-center gap-1.5"><Link href={section.path ? `${base}/${section.path}` : base} className="text-muted-foreground hover:text-ink">{section.label}</Link><span className="text-muted-foreground">/</span><span className="font-medium">Details</span></span>
+          ) : <span className="font-semibold">{section.label}</span>
+        ) : rest === "search" ? <span className="font-semibold">Search</span> : null}
+      </nav>
+      <form action={`${base}/search`} method="get" role="search" className="relative mx-auto max-w-xl flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
           name="q"
-          placeholder="Search customers…"
+          placeholder="Search contacts, deals, orders, tickets…"
           aria-label="Global search"
-          className="h-9 w-full rounded-md border bg-muted/50 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:bg-card"
+          className="h-10 w-full rounded-full border bg-muted/40 pl-9 pr-4 text-sm placeholder:text-muted-foreground focus:bg-card"
         />
       </form>
       <div className="ml-auto flex items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" aria-label="Quick create">
+            <Button aria-label="Quick create" className="rounded-full">
               <Plus /> <span className="hidden sm:inline">Create</span>
             </Button>
           </DropdownMenuTrigger>
@@ -58,14 +74,21 @@ export function Topbar({
             {canCreateCustomer && (
               <DropdownMenuItem asChild>
                 <Link href={`${base}/customers/new`}>
-                  <UserRound /> Customer
+                  <UserRound /> Contact
                 </Link>
               </DropdownMenuItem>
             )}
             {canCreateLead && (
               <DropdownMenuItem asChild>
-                <Link href={`${base}/leads`}>
-                  <KanbanSquare /> Lead
+                <Link href={`${base}/leads?new=1`}>
+                  <Filter /> Lead
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {canCreateLead && (
+              <DropdownMenuItem asChild>
+                <Link href={`${base}/deals?new=1`}>
+                  <KanbanSquare /> Deal
                 </Link>
               </DropdownMenuItem>
             )}
@@ -85,7 +108,7 @@ export function Topbar({
             )}
             {canCreateTask && (
               <DropdownMenuItem asChild>
-                <Link href={`${base}/tasks`}>
+                <Link href={`${base}/tasks?new=1`}>
                   <CheckCircle2 /> Task
                 </Link>
               </DropdownMenuItem>
@@ -97,15 +120,13 @@ export function Topbar({
                 </Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="font-normal">Order and ticket creation arrive in Phases 4–5.</DropdownMenuLabel>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="ghost" size="icon" asChild>
           <Link href={`${base}/notifications`} aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative">
             <Bell />
             {unread > 0 && (
-              <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-4 text-white">
+              <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-4 text-navy">
                 {unread > 9 ? "9+" : unread}
               </span>
             )}

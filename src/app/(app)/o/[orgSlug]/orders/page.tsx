@@ -26,7 +26,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   const ctx = await requireOrgContext(orgSlug);
   if (!can(ctx, "orders.read")) forbidden();
   const sp = await searchParams;
-  const filters: OrderFilters = { view: (sp.view as OrderFilters["view"]) ?? "all", q: sp.q, customer: sp.customer, page: sp.page ?? 1, pageSize: sp.pageSize ?? 25 };
+  const filters: OrderFilters = { view: (sp.view as OrderFilters["view"]) ?? "all", q: sp.q, customer: sp.customer, from: sp.from, to: sp.to, moneyFrom: sp.moneyFrom, moneyTo: sp.moneyTo, assignee: sp.assignee, page: sp.page ?? 1, pageSize: sp.pageSize ?? 25 };
   let data;
   try {
     data = await listOrders(ctx, filters);
@@ -37,7 +37,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
   const stats = await getCommerceStats(ctx);
   const base = `/o/${orgSlug}/orders`;
   const qs = (patch: SP) => {
-    const u = new URLSearchParams(Object.entries({ view: data.filters.view, q: data.filters.q, ...patch }).filter(([, v]) => v && v !== "all") as [string, string][]);
+    const u = new URLSearchParams(Object.entries({ view: data.filters.view, q: data.filters.q, from: data.filters.from, to: data.filters.to, moneyFrom: data.filters.moneyFrom, moneyTo: data.filters.moneyTo, assignee: data.filters.assignee, ...patch }).filter(([, v]) => v && v !== "all") as [string, string][]);
     const s = u.toString();
     return s ? `${base}?${s}` : base;
   };
@@ -61,7 +61,7 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
     }
   }
 
-  const noneAtAll = data.total === 0 && data.filters.view === "all" && !data.filters.q && !data.filters.customer;
+  const noneAtAll = data.total === 0 && data.filters.view === "all" && !data.filters.q && !data.filters.customer && !data.filters.from && !data.filters.moneyFrom && !data.filters.assignee;
   return (
     <>
       <PageHeader
@@ -89,6 +89,15 @@ export default async function OrdersPage({ params, searchParams }: { params: Pro
           </Link>
         ))}
       </nav>
+      {(data.filters.from || data.filters.moneyFrom || data.filters.assignee) && (
+        <p className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
+            {data.filters.moneyFrom ? "Orders with payments or refunds in the dashboard period" : data.filters.from ? "Orders placed in the dashboard period" : "Filtered"}
+            {data.filters.assignee ? " · one team member" : ""}
+          </span>
+          <Link href={qs({ from: undefined, to: undefined, moneyFrom: undefined, moneyTo: undefined, assignee: undefined, page: undefined })} className="text-primary hover:underline">Clear</Link>
+        </p>
+      )}
       <form className="mb-4 flex gap-2" action={base}>
         {data.filters.view !== "all" && <input type="hidden" name="view" value={data.filters.view} />}
         <Input name="q" defaultValue={data.filters.q} placeholder="Search order number or customer…" className="max-w-sm" aria-label="Search orders" />

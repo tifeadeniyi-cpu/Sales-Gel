@@ -60,6 +60,10 @@ export const leadFiltersSchema = z.object({
   q: z.string().trim().max(120).optional(),
   customer: z.uuid().optional(),
   priority: z.enum(PRIORITIES).optional(),
+  stage: z.uuid().optional(),
+  /** Created-at window (ISO timestamps), used by dashboard drill-downs. */
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
 });
 export type LeadFilters = z.input<typeof leadFiltersSchema>;
 

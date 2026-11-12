@@ -5,7 +5,7 @@ import { getSessionUser } from "@/server/auth/session";
 import { safeNext } from "@/lib/safe-next";
 import { SignUpForm } from "./sign-up-form";
 
-export const metadata: Metadata = { title: "Create account · Commerce CRM" };
+export const metadata: Metadata = { title: "Create account · SalesGel" };
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ next?: string; email?: string }> }) {
   const sp = await searchParams;

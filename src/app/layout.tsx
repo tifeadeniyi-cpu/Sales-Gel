@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Commerce CRM",
+  title: "SalesGel",
   description: "CRM, social commerce and customer support for small businesses.",
 };
 

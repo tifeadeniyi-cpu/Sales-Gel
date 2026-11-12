@@ -78,6 +78,20 @@
       "when": 1794522836014,
       "tag": "0010_support_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794524551066,
+      "tag": "0011_dashboard_layouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794524551912,
+      "tag": "0012_dashboard_layouts_rls",
+      "breakpoints": true
     }
   ]
 }

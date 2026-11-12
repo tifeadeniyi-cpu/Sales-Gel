@@ -431,6 +431,13 @@ export async function listOrders(ctx: OrgContext, filters: OrderFilters & { lead
     const conds: (SQL | undefined)[] = [eq(orders.organizationId, ctx.orgId), viewWhere(f.view)];
     if (f.customer) conds.push(eq(orders.customerId, f.customer));
     if (filters.lead) conds.push(eq(orders.leadId, filters.lead));
+    if (f.from) conds.push(gte(orders.placedAt, new Date(f.from)));
+    if (f.to) conds.push(sql`${orders.placedAt} < ${f.to}::timestamptz`);
+    if (f.assignee) conds.push(eq(orders.assignedMembershipId, f.assignee));
+    if (f.moneyFrom && f.moneyTo) {
+      conds.push(sql`(exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} = 'succeeded' and ${payments.voidedAt} is null and ${payments.receivedAt} >= ${f.moneyFrom}::timestamptz and ${payments.receivedAt} < ${f.moneyTo}::timestamptz)
+        or exists (select 1 from ${refunds} where ${refunds.orderId} = ${orders.id} and ${refunds.refundedAt} >= ${f.moneyFrom}::timestamptz and ${refunds.refundedAt} < ${f.moneyTo}::timestamptz))`);
+    }
     if (f.q) {
       const like = `%${f.q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       const num = f.q.match(/^(?:ord-)?(\d+)$/i);

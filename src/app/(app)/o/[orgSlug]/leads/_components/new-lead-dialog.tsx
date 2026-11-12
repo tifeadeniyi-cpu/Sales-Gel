@@ -23,6 +23,7 @@ export function NewLeadDialog({
   canAssign,
   presetCustomer,
   trigger,
+  defaultOpen,
 }: {
   orgSlug: string;
   pipelines: { id: string; name: string; stages: { id: string; name: string; category: string }[] }[];
@@ -33,9 +34,15 @@ export function NewLeadDialog({
   canAssign: boolean;
   presetCustomer?: PickerOption;
   trigger?: React.ReactNode;
+  /** Open on mount (Quick create links use ?new=1). */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(!!defaultOpen);
+  const setOpen = (o: boolean) => {
+    setOpenState(o);
+    if (!o && defaultOpen && typeof window !== "undefined" && window.location.search.includes("new=1")) router.replace(window.location.pathname);
+  };
   const [pipelineId, setPipelineId] = useState(defaultPipelineId ?? pipelines[0]?.id);
   const pipeline = pipelines.find((p) => p.id === pipelineId) ?? pipelines[0];
   const openStages = pipeline?.stages.filter((s) => s.category === "open") ?? [];

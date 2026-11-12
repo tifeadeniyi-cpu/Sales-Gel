@@ -39,7 +39,7 @@ test("Scenario 1: inquiry → customer → lead won → order → payments → f
   await expect(page.getByRole("heading", { name: "Funke Adeyemi" })).toBeVisible();
 
   // Lead
-  await page.goto(`/o/${slug}/leads`);
+  await page.goto(`/o/${slug}/deals`);
   await page.getByRole("button", { name: "New lead" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: /^Title/ }).fill("Bridal party dresses");

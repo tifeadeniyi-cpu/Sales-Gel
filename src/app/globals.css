@@ -1,20 +1,22 @@
 @import "tailwindcss";
 
-/* Commerce CRM design tokens — see docs/03-routes-and-components.md */
+/* SalesGel design tokens — blue-and-teal brand (see docs/03-routes-and-components.md) */
 :root {
-  --brand-primary: #126c64; /* Primary Teal */
-  --brand-accent: #1e9584; /* Accent Teal */
-  --brand-ink: #202a36; /* Dark Text */
-  --brand-surface: #edf2ef; /* Light Surface */
-  --brand-highlight: #c49a61; /* Warm Highlight */
+  --brand-primary: #0053ee; /* Electric Blue — primary actions */
+  --brand-accent: #00c2a8; /* Bright Teal — highlights (pair with navy text) */
+  --brand-teal-ink: #0b7f72; /* Teal dark enough for text on white */
+  --brand-navy: #061a3a; /* Deep Navy — sidebar */
+  --brand-ink: #0f1b2d; /* Dark Text */
+  --brand-surface: #eef3fb; /* Light Surface */
+  --brand-highlight: #c88a2b; /* Warm Highlight (notes, partial states) */
 
-  --background: #f6f8f7;
+  --background: #f4f7fc;
   --foreground: var(--brand-ink);
   --card: #ffffff;
   --muted: var(--brand-surface);
-  --muted-foreground: #5b6673;
-  --border: #d9e2dd;
-  --ring: var(--brand-accent);
+  --muted-foreground: #556275;
+  --border: #dde4ef;
+  --ring: var(--brand-primary);
 
   --success: #15803d;
   --warning: #b45309;
@@ -22,7 +24,7 @@
   --info: #1d4ed8;
   --inactive: #6b7280;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -39,6 +41,8 @@
   --color-ink: var(--brand-ink);
   --color-surface: var(--brand-surface);
   --color-highlight: var(--brand-highlight);
+  --color-navy: var(--brand-navy);
+  --color-teal-ink: var(--brand-teal-ink);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);

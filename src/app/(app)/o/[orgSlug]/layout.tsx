@@ -16,7 +16,7 @@ export default async function OrgLayout({ children, params }: { children: React.
   const [orgs, unread, openTickets] = await Promise.all([listMyOrganizations(user.id), unreadNotificationCount(ctx), countOpenTickets(ctx)]);
   const groups = visibleNav(ctx.permissions);
   const orgOptions = orgs.map((o) => ({ slug: o.slug, name: o.name }));
-  const navProps = { orgSlug, orgName: ctx.orgName, orgs: orgOptions, groups, unread, counts: { tickets: openTickets } };
+  const navProps = { orgSlug, orgName: ctx.orgName, roleName: ctx.roleName, orgs: orgOptions, groups, unread, counts: { tickets: openTickets }, user: { name: user.name, email: user.email, image: user.image ?? null } };
 
   return (
     <div className="flex min-h-screen">
@@ -24,7 +24,7 @@ export default async function OrgLayout({ children, params }: { children: React.
       <Sidebar {...navProps} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar orgSlug={orgSlug} user={user} unread={unread} canInvite={can(ctx, "members.manage")} canCreateCustomer={can(ctx, "customers.write")} canCreateLead={can(ctx, "leads.write")} canCreateTask={can(ctx, "tasks.write")} canCreateOrder={can(ctx, "orders.write")} canCreateTicket={can(ctx, "tickets.write")} mobileNav={<MobileNav {...navProps} />} />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const metadata = { title: "Help · Commerce CRM" };
+export const metadata = { title: "Help · SalesGel" };
 
 export default function HelpPage() {
   return (

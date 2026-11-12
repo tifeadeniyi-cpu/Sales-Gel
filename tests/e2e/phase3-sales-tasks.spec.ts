@@ -15,7 +15,7 @@ test("create a lead linked to a customer and see it on the board", async ({ page
   await page.getByRole("button", { name: "Create customer" }).click();
   await expect(page.getByRole("heading", { name: "Kemi Bello" })).toBeVisible();
 
-  await page.goto(`/o/${slug}/leads`);
+  await page.goto(`/o/${slug}/deals`);
   await expect(page.getByText("No leads yet")).toBeVisible();
   await page.getByRole("button", { name: "New lead" }).click();
   const dialog = page.getByRole("dialog");
@@ -33,7 +33,7 @@ test("create a lead linked to a customer and see it on the board", async ({ page
 
 test("drag a lead to another stage; it persists", async ({ page }) => {
   await signIn(page, owner);
-  await page.goto(`/o/${slug}/leads`);
+  await page.goto(`/o/${slug}/deals`);
   const card = page.getByRole("button", { name: "Open lead Wedding catering" });
   const qualified = page.getByRole("listitem", { name: /Qualified/ });
   await card.dragTo(qualified);
@@ -51,7 +51,7 @@ test("stage required fields block moves with a clear message; lost needs a reaso
   await expect(page.getByText("Stage saved")).toBeVisible();
   await expect(page.getByText("Requires: Expected close date")).toBeVisible();
 
-  await page.goto(`/o/${slug}/leads`);
+  await page.goto(`/o/${slug}/deals`);
   await page.getByLabel("Move Wedding catering to stage").selectOption({ label: "Move to Offer Sent" });
   await expect(page.getByText(/“Offer Sent” requires: Expected close date/)).toBeVisible();
   await expect(page.getByRole("listitem", { name: /Qualified/ }).getByText("Wedding catering")).toBeVisible();
@@ -65,7 +65,7 @@ test("stage required fields block moves with a clear message; lost needs a reaso
 
 test("lead drawer: reopen, edit inline, add a task linked to the lead", async ({ page }) => {
   await signIn(page, owner);
-  await page.goto(`/o/${slug}/leads`);
+  await page.goto(`/o/${slug}/deals`);
   await page.getByRole("button", { name: "Open lead Wedding catering" }).click();
   const drawer = page.getByRole("dialog");
   await expect(drawer.getByText("Reason: Price too high")).toBeVisible();
@@ -146,7 +146,7 @@ test("sales reps can't open pipeline settings", async ({ page }) => {
   await page.getByRole("button", { name: "Accept invitation" }).click();
   await expect(page.getByText("You're signed in as Sales Representative")).toBeVisible();
 
-  await page.goto(`/o/${slug}/leads`);
+  await page.goto(`/o/${slug}/deals`);
   await expect(page.getByRole("link", { name: "Pipeline settings" })).toHaveCount(0);
   // Reps only see leads assigned to them — the owner's unassigned lead is hidden.
   await expect(page.getByText("Wedding catering")).toHaveCount(0);

@@ -12,7 +12,7 @@ const vercelOrigins = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, pr
   .filter((o): o is string => !!o);
 
 export const auth = betterAuth({
-  appName: "Commerce CRM",
+  appName: "SalesGel",
   baseURL: process.env.BETTER_AUTH_URL ?? https(process.env.VERCEL_PROJECT_PRODUCTION_URL),
   trustedOrigins: vercelOrigins,
   secret: process.env.BETTER_AUTH_SECRET,

@@ -5,7 +5,7 @@ import { getSessionUser } from "@/server/auth/session";
 import { safeNext } from "@/lib/safe-next";
 import { SignInForm } from "./sign-in-form";
 
-export const metadata: Metadata = { title: "Sign in · Commerce CRM" };
+export const metadata: Metadata = { title: "Sign in · SalesGel" };
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const next = safeNext((await searchParams).next) ?? undefined;

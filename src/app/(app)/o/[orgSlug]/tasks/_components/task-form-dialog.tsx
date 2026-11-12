@@ -20,6 +20,7 @@ export function TaskFormDialog({
   currentMembershipId,
   presetRelations = [],
   trigger,
+  defaultOpen,
   canSearchLeads,
   canSearchCustomers,
 }: {
@@ -30,9 +31,15 @@ export function TaskFormDialog({
   trigger?: React.ReactNode;
   canSearchLeads: boolean;
   canSearchCustomers: boolean;
+  /** Open on mount (Quick create links use ?new=1). */
+  defaultOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(!!defaultOpen);
+  const setOpen = (o: boolean) => {
+    setOpenState(o);
+    if (!o && defaultOpen && typeof window !== "undefined" && window.location.search.includes("new=1")) router.replace(window.location.pathname);
+  };
   const blank = { title: "", description: "", priority: "medium", assigneeMembershipId: currentMembershipId, dueAt: "", recurrence: "none" };
   const [form, setForm] = useState(blank);
   const [relations, setRelations] = useState<Relation[]>(presetRelations);

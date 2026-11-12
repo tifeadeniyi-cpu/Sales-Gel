@@ -11,22 +11,21 @@ export interface OrgOption {
   name: string;
 }
 
-export function OrgSwitcher({ current, orgs, collapsed }: { current: OrgOption; orgs: OrgOption[]; collapsed?: boolean }) {
+export function OrgSwitcher({ current, orgs, compactClass = "" }: { current: OrgOption; orgs: OrgOption[]; compactClass?: string }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left hover:bg-muted" aria-label="Switch organization">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
+      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-left text-white hover:bg-white/10" aria-label="Switch organization">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-[11px] font-bold text-navy">
           {initials(current.name)}
         </span>
-        {!collapsed && (
-          <>
-            <span className="flex-1 truncate text-sm font-semibold">{current.name}</span>
-            <ChevronsUpDown className="size-4 text-muted-foreground" />
-          </>
-        )}
+        <span className={`min-w-0 flex-1 ${compactClass}`}>
+          <span className="block text-[10px] uppercase tracking-wider text-white/50">Workspace</span>
+          <span className="block truncate text-sm font-semibold">{current.name}</span>
+        </span>
+        <ChevronsUpDown className={`size-4 text-white/60 ${compactClass.replace("sr-only", "hidden")}`} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+        <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
         {orgs.map((o) => (
           <DropdownMenuItem key={o.slug} asChild>
             <Link href={`/o/${o.slug}`}>
@@ -39,7 +38,7 @@ export function OrgSwitcher({ current, orgs, collapsed }: { current: OrgOption; 
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/onboarding">
-            <Plus /> Create organization
+            <Plus /> Create workspace
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>

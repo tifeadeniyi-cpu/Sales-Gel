@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, lt, max, min, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNull, lt, max, min, ne, or, sql, type SQL } from "drizzle-orm";
 import { customers } from "@/domains/customers/schema";
 import { memberships } from "@/domains/identity/schema";
 import { auditLogs } from "@/domains/platform/schema";
@@ -40,7 +40,7 @@ function assertCanReadLeads(ctx: OrgContext) {
 function need(ctx: OrgContext, p: "leads.write" | "pipelines.manage") {
   if (!ctx.permissions.has(p)) throw new ForbiddenError(undefined, p);
 }
-function leadScope(ctx: OrgContext): SQL | undefined {
+export function leadScope(ctx: OrgContext): SQL | undefined {
   if (ctx.permissions.has("leads.read")) return undefined;
   if (ctx.permissions.has("leads.read_assigned")) return eq(leads.ownerMembershipId, ctx.membershipId);
   return sql`false`;
@@ -532,6 +532,9 @@ function leadWhere(ctx: OrgContext, f: ReturnType<typeof leadFiltersSchema.parse
   else if (f.owner && /^[0-9a-f-]{36}$/i.test(f.owner)) conds.push(eq(leads.ownerMembershipId, f.owner));
   if (f.customer) conds.push(eq(leads.customerId, f.customer));
   if (f.priority) conds.push(eq(leads.priority, f.priority));
+  if (f.stage) conds.push(eq(leads.stageId, f.stage));
+  if (f.from) conds.push(gte(leads.createdAt, new Date(f.from)));
+  if (f.to) conds.push(lt(leads.createdAt, new Date(f.to)));
   if (f.q) {
     const like = `%${f.q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
     const num = f.q.match(/^(?:lead-)?(\d+)$/i);

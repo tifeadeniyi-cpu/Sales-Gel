@@ -6,7 +6,7 @@ import { getInvitationByToken } from "@/domains/identity/service";
 import { getSessionUser } from "@/server/auth/session";
 import { AcceptForm } from "./accept-form";
 
-export const metadata: Metadata = { title: "Invitation · Commerce CRM", robots: { index: false } };
+export const metadata: Metadata = { title: "Invitation · SalesGel", robots: { index: false } };
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

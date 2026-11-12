@@ -1,18 +1,28 @@
 "use client";
 import { Columns3, List, Search } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NativeSelect } from "@/components/ui/input";
 import { useUrlParams } from "@/components/app/use-url-params";
 import { cn } from "@/lib/utils";
 
-export function LeadFilters({ pipelines, members, canSeeAll }: { pipelines: { id: string; name: string }[]; members: { membershipId: string; name: string }[]; canSeeAll: boolean }) {
+export function LeadFilters({ pipelines, members, canSeeAll, view }: { pipelines: { id: string; name: string }[]; members: { membershipId: string; name: string }[]; canSeeAll: boolean; view: "board" | "list" }) {
   const { params, set } = useUrlParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const go = (to: "deals" | "leads") => {
+    const next = new URLSearchParams(params.toString());
+    next.delete("view");
+    next.delete("open");
+    if (to === "deals") next.delete("status");
+    const qs = next.toString();
+    router.push(`${pathname.replace(/\/(leads|deals)$/, `/${to}`)}${qs ? `?${qs}` : ""}`);
+  };
   const [q, setQ] = useState(params.get("q") ?? "");
   useEffect(() => {
     const t = setTimeout(() => { if ((params.get("q") ?? "") !== q) set({ q: q || null }, { replace: true }); }, 300);
     return () => clearTimeout(t);
   }, [q, params, set]);
-  const view = params.get("view") ?? "board";
   return (
     <div className="flex flex-wrap items-center gap-2">
       {pipelines.length > 1 && (
@@ -36,8 +46,8 @@ export function LeadFilters({ pipelines, members, canSeeAll }: { pipelines: { id
         </NativeSelect>
       )}
       <div className="flex rounded-md border bg-card p-0.5">
-        <button type="button" aria-label="Board view" aria-pressed={view === "board"} onClick={() => set({ view: null })} className={cn("rounded p-1.5", view === "board" && "bg-muted")}><Columns3 className="size-4" /></button>
-        <button type="button" aria-label="List view" aria-pressed={view === "list"} onClick={() => set({ view: "list" })} className={cn("rounded p-1.5", view === "list" && "bg-muted")}><List className="size-4" /></button>
+        <button type="button" aria-label="Board view" aria-pressed={view === "board"} onClick={() => view !== "board" && go("deals")} className={cn("rounded p-1.5", view === "board" && "bg-muted")}><Columns3 className="size-4" /></button>
+        <button type="button" aria-label="List view" aria-pressed={view === "list"} onClick={() => view !== "list" && go("leads")} className={cn("rounded p-1.5", view === "list" && "bg-muted")}><List className="size-4" /></button>
       </div>
     </div>
   );

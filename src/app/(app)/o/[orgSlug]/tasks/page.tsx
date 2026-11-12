@@ -55,7 +55,7 @@ export default async function TasksPage({ params, searchParams }: { params: Prom
         title="Tasks & Activities"
         description={stats ? `${stats.dueToday} due today · ${stats.overdue} overdue · ${stats.open} open assigned to you` : undefined}
         actions={canWrite && (
-          <TaskFormDialog orgSlug={orgSlug} members={memberOpts} currentMembershipId={ctx.membershipId} canSearchLeads={canAny(ctx, "leads.read", "leads.read_assigned")} canSearchCustomers={canAny(ctx, "customers.read", "customers.read_assigned")} />
+          <TaskFormDialog key={sp.new === "1" ? "new" : "btn"} defaultOpen={sp.new === "1"} orgSlug={orgSlug} members={memberOpts} currentMembershipId={ctx.membershipId} canSearchLeads={canAny(ctx, "leads.read", "leads.read_assigned")} canSearchCustomers={canAny(ctx, "customers.read", "customers.read_assigned")} />
         )}
       />
       <TaskToolbar />
