@@ -7,6 +7,7 @@ import { withTenant } from "@/server/db/tenant";
 import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
 import { leadsMergeMover } from "@/domains/sales/merge";
 import { taskRelationsMergeMover } from "@/domains/tasks/merge";
+import { ordersMergeMover } from "@/domains/commerce/merge";
 import { loadForWrite, readScope, requirePerm } from "./internal";
 import { normalizeEmail, normalizeHandle, normalizePhone } from "./normalize";
 import {
@@ -175,6 +176,7 @@ const MOVERS: MoverDef[] = [
   simpleMover("consents", customerConsents),
   leadsMergeMover,
   taskRelationsMergeMover,
+  ordersMergeMover,
 ];
 
 export function registerMergeMover(mover: MoverDef) {
