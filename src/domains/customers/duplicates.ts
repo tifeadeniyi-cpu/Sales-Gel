@@ -5,6 +5,8 @@ import type { OrgContext } from "@/server/authz/context";
 import type { Tx } from "@/server/db/client";
 import { withTenant } from "@/server/db/tenant";
 import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
+import { leadsMergeMover } from "@/domains/sales/merge";
+import { taskRelationsMergeMover } from "@/domains/tasks/merge";
 import { loadForWrite, readScope, requirePerm } from "./internal";
 import { normalizeEmail, normalizeHandle, normalizePhone } from "./normalize";
 import {
@@ -123,8 +125,8 @@ interface MoverDef {
   key: string;
   /** Moves rows from `from` to `to` and returns moved ids; conflicting rows stay put. */
   move(tx: Tx, orgId: string, from: string, to: string): Promise<string[]>;
-  /** Moves the given ids back to `to`. */
-  restore(tx: Tx, orgId: string, ids: string[], to: string): Promise<void>;
+  /** Moves the given ids back to `to` (`from` is the survivor they currently point at). */
+  restore(tx: Tx, orgId: string, ids: string[], to: string, from?: string): Promise<void>;
 }
 
 function simpleMover(key: string, table: typeof customerNotes | typeof customerAddresses | typeof customerConsents): MoverDef {
@@ -171,6 +173,8 @@ const MOVERS: MoverDef[] = [
   simpleMover("addresses", customerAddresses),
   simpleMover("notes", customerNotes),
   simpleMover("consents", customerConsents),
+  leadsMergeMover,
+  taskRelationsMergeMover,
 ];
 
 export function registerMergeMover(mover: MoverDef) {
@@ -259,7 +263,7 @@ export async function unmergeCustomers(ctx: OrgContext, mergeId: string) {
 
     for (const mover of MOVERS) {
       const ids = snap.moved[mover.key] ?? [];
-      await mover.restore(tx, ctx.orgId, ids, m.mergedId);
+      await mover.restore(tx, ctx.orgId, ids, m.mergedId, m.survivorId);
     }
 
     const patch: Record<string, unknown> = {};

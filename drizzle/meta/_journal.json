@@ -36,6 +36,20 @@
       "when": 1794460524751,
       "tag": "0004_customers_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794488752649,
+      "tag": "0005_sales_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794488753476,
+      "tag": "0006_sales_tasks_rls",
+      "breakpoints": true
     }
   ]
 }
