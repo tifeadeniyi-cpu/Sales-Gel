@@ -9,12 +9,15 @@ export function NavList({
   orgSlug,
   groups,
   unread,
+  counts = {},
   collapsed = false,
   onNavigate,
 }: {
   orgSlug: string;
   groups: { label: string; items: NavItem[] }[];
   unread: number;
+  /** Badge counts keyed by nav item key (e.g. open tickets). */
+  counts?: Record<string, number>;
   collapsed?: boolean;
   onNavigate?: () => void;
 }) {
@@ -59,6 +62,11 @@ export function NavList({
                     {!collapsed && item.key === "notifications" && unread > 0 && (
                       <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white" aria-label={`${unread} unread`}>
                         {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+                    {!collapsed && (counts[item.key] ?? 0) > 0 && (
+                      <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white" aria-label={`${counts[item.key]} open`}>
+                        {counts[item.key] > 99 ? "99+" : counts[item.key]}
                       </span>
                     )}
                     {!collapsed && soon && <span className="text-[10px] uppercase text-muted-foreground">Soon</span>}

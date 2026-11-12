@@ -16,7 +16,7 @@ export default async function CustomerSettingsPage({ params }: { params: Promise
   return (
     <>
       <PageHeader title="Settings" description="Customer fields and tags." />
-      <SettingsTabs orgSlug={orgSlug} active="customers" showAudit={can(ctx, "audit.read")} />
+      <SettingsTabs orgSlug={orgSlug} active="customers" showAudit={can(ctx, "audit.read")} showSupport={canAny(ctx, "tickets.read", "support.configure")} />
       <div className="mt-6 grid gap-6">
         <Card>
           <CardHeader><CardTitle>Custom customer fields</CardTitle><CardDescription>Extra information you want to track on every customer, like birthday or loyalty tier.</CardDescription></CardHeader>

@@ -12,7 +12,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   cacheComponents: false,
-  experimental: { authInterrupts: true },
+  experimental: {
+    authInterrupts: true,
+    // Ticket attachments: Vercel caps request bodies at 4.5 MB, so uploads are limited to 4 MB per message.
+    serverActions: { bodySizeLimit: "4.5mb" },
+    proxyClientMaxBodySize: "4.5mb",
+  },
   serverExternalPackages: ["pino", "postgres"],
   turbopack: {
     rules: {

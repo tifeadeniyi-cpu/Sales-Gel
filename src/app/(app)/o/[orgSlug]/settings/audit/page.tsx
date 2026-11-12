@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { listAuditLogs } from "@/domains/platform/audit-queries";
 import { requireOrgContext } from "@/server/authz/request";
-import { can } from "@/server/authz/guards";
+import { can, canAny } from "@/server/authz/guards";
 import { describeAudit } from "@/lib/audit-labels";
 import { formatDateTime } from "@/lib/utils";
 import { SettingsTabs } from "../settings-tabs";
@@ -22,7 +22,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
   return (
     <>
       <PageHeader title="Settings" description="Every security-relevant change in this organization. Entries can't be edited or deleted." />
-      <SettingsTabs orgSlug={orgSlug} active="audit" showAudit />
+      <SettingsTabs orgSlug={orgSlug} active="audit" showAudit showSupport={canAny(ctx, "tickets.read", "support.configure")} />
       <Card className="mt-6">
         <Table>
           <THead><TR><TH>When</TH><TH>Who</TH><TH>Action</TH><TH>Details</TH></TR></THead>

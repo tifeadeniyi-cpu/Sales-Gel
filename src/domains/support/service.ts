@@ -146,12 +146,13 @@ function sniffOk(mime: string, b: Buffer) {
 async function storeFiles(tx: Tx, ctx: OrgContext, ticketId: string, messageId: string | null, list: UploadFile[]) {
   if (!list.length) return [];
   if (list.length > ATTACHMENT_MAX_FILES) throw new ValidationError(`Attach up to ${ATTACHMENT_MAX_FILES} files at a time.`, { files: [`Up to ${ATTACHMENT_MAX_FILES} files`] });
+  const total = list.reduce((n, f) => n + f.data.length, 0);
+  if (total > ATTACHMENT_MAX_BYTES) throw new ValidationError("Attachments are larger than 4 MB in total.", { files: ["Max 4 MB per message"] });
   const out: string[] = [];
   for (const f of list) {
     const name = f.filename.replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 180) || "file";
     if (f.data.length === 0) throw new ValidationError(`“${name}” is empty.`, { files: ["Empty file"] });
-    if (f.data.length > ATTACHMENT_MAX_BYTES) throw new ValidationError(`“${name}” is larger than 10 MB.`, { files: ["Max 10 MB per file"] });
-    if (!(ATTACHMENT_MIME as readonly string[]).includes(f.mimeType)) throw new ValidationError(`“${name}” isn't a supported file type.`, { files: ["Images, PDF, Office documents, text, audio and video"] });
+        if (!(ATTACHMENT_MIME as readonly string[]).includes(f.mimeType)) throw new ValidationError(`“${name}” isn't a supported file type.`, { files: ["Images, PDF, Office documents, text, audio and video"] });
     if (!sniffOk(f.mimeType, f.data)) throw new ValidationError(`“${name}” doesn't match its file type.`, { files: ["File content doesn't match its type"] });
     const fileId = newId();
     await tx.insert(files).values({ id: fileId, organizationId: ctx.orgId, filename: name, mimeType: f.mimeType, sizeBytes: f.data.length, sha256: createHash("sha256").update(f.data).digest("hex"), storage: "db", content: f.data, uploadedByUserId: ctx.userId });
@@ -654,3 +655,18 @@ export async function searchTicketsForPicker(ctx: OrgContext, q: string) {
   return r.rows.slice(0, 10).map((t) => ({ id: t.id, label: `TCK-${t.number} · ${t.subject}`, sub: t.customerName ?? undefined }));
 }
 
+
+/** Files attached to this customer's tickets that the user can see. */
+export async function listCustomerFiles(ctx: OrgContext, customerId: string) {
+  if (!canReadAll(ctx) && !ctx.permissions.has("tickets.read_assigned")) return null;
+  return withTenant(ctx, (tx) =>
+    tx
+      .select({ id: ticketAttachments.id, filename: files.filename, mimeType: files.mimeType, size: files.sizeBytes, createdAt: ticketAttachments.createdAt, ticketId: supportTickets.id, ticketNumber: supportTickets.number })
+      .from(ticketAttachments)
+      .innerJoin(files, eq(files.id, ticketAttachments.fileId))
+      .innerJoin(supportTickets, eq(supportTickets.id, ticketAttachments.ticketId))
+      .where(and(eq(supportTickets.organizationId, ctx.orgId), eq(supportTickets.customerId, customerId), ticketScope(ctx)))
+      .orderBy(desc(ticketAttachments.createdAt))
+      .limit(200),
+  );
+}

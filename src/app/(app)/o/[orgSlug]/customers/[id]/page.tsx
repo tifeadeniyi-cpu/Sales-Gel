@@ -12,6 +12,10 @@ import { listLeads, listPipelines } from "@/domains/sales/service";
 import { listTasks } from "@/domains/tasks/service";
 import { formatMoney } from "@/lib/money";
 import { getCustomerCommerce, listOrders } from "@/domains/commerce/orders";
+import { getCustomerTicketCounts, listCustomerFiles, listTickets } from "@/domains/support/service";
+import { TicketTable } from "../../support/tickets/_components/ticket-table";
+import { NewTicketButton } from "../../support/tickets/_components/new-ticket-dialog";
+import { loadTicketLookups } from "../../support/tickets/_components/load";
 import { OrderTable } from "../../orders/_components/order-table";
 import { Button } from "@/components/ui/button";
 import { RelatedTasks } from "../../tasks/_components/related-tasks";
@@ -28,8 +32,6 @@ import { customerPerms, loadCustomerLookups } from "../_components/load";
 
 const LATER_TABS: Record<string, { label: string; phase: number; what: string }> = {
   conversations: { label: "Conversations", phase: 8, what: "Messages from email, WhatsApp, Instagram and Messenger" },
-  tickets: { label: "Tickets", phase: 5, what: "Support tickets" },
-  files: { label: "Files", phase: 5, what: "Attachments" },
 };
 
 export default async function CustomerDetailPage({ params, searchParams }: { params: Promise<{ orgSlug: string; id: string }>; searchParams: Promise<{ tab?: string }> }) {
@@ -46,7 +48,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     tab === "notes" || tab === "overview" ? listNotes(ctx, c.id) : Promise.resolve([]),
     tab === "timeline" ? getCustomerTimeline(ctx, c.id) : Promise.resolve([]),
   ]);
-  if (!["overview", "timeline", "notes", "leads", "tasks", "orders", ...Object.keys(LATER_TABS)].includes(tab)) redirect(`${base}/${c.id}`);
+  if (!["overview", "timeline", "notes", "leads", "tasks", "orders", "tickets", "files", ...Object.keys(LATER_TABS)].includes(tab)) redirect(`${base}/${c.id}`);
   const canLeads = canAny(ctx, "leads.read", "leads.read_assigned");
   const canTasks = can(ctx, "tasks.read");
   const [customerLeads, customerTasks, pipelines] = await Promise.all([
@@ -59,6 +61,13 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     canOrders ? getCustomerCommerce(ctx, c.id) : Promise.resolve(null),
     canOrders && (tab === "orders" || tab === "overview") ? listOrders(ctx, { customer: c.id, pageSize: tab === "orders" ? 100 : 25 }) : Promise.resolve(null),
   ]);
+  const canTickets = canAny(ctx, "tickets.read", "tickets.read_assigned");
+  const customerFiles = canTickets && tab === "files" ? await listCustomerFiles(ctx, c.id) : null;
+  const [ticketCounts, customerTickets, ticketLookups] = await Promise.all([
+    canTickets ? getCustomerTicketCounts(ctx, c.id) : Promise.resolve(null),
+    canTickets && tab === "tickets" ? listTickets(ctx, { view: "all", customer: c.id, pageSize: 100 }) : Promise.resolve(null),
+    canTickets && tab === "tickets" && can(ctx, "tickets.write") ? loadTicketLookups(ctx) : Promise.resolve(null),
+  ]);
   const lifetime = commerce?.byCurrency.filter((b) => b.lifetimeNet !== null) ?? [];
   const memberOpts = lookups.members.map((m) => ({ membershipId: m.membershipId, name: m.name }));
 
@@ -69,6 +78,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     ...(canLeads ? [{ key: "leads", label: "Leads" }] : []),
     ...(canTasks ? [{ key: "tasks", label: "Tasks" }] : []),
     ...(canOrders ? [{ key: "orders", label: `Orders${commerce?.totalOrders ? ` (${commerce.totalOrders})` : ""}` }] : []),
+    ...(canTickets ? [{ key: "tickets", label: `Tickets${ticketCounts?.total ? ` (${ticketCounts.total})` : ""}` }, { key: "files", label: "Files" }] : []),
     ...Object.entries(LATER_TABS).map(([key, t]) => ({ key, label: t.label })),
   ].map((t) => ({ ...t, href: t.key === "overview" ? `${base}/${c.id}` : `${base}/${c.id}?tab=${t.key}` }));
   const editable = perms.write && c.status !== "merged";
@@ -114,12 +124,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                     <Metric label="Last purchase" value={commerce.lastPurchase ? formatRelative(commerce.lastPurchase) : "—"} />
                   </>
                 ) : null}
-                <Card className="bg-card/60">
-                  <CardContent className="p-3">
-                    <div className="text-xs text-muted-foreground">Open tickets</div>
-                    <div className="mt-1 text-xs text-muted-foreground"><Badge tone="inactive">Phase 5</Badge></div>
-                  </CardContent>
-                </Card>
+                {ticketCounts && <Metric label="Open tickets" value={String(ticketCounts.open)} hint={`${ticketCounts.total} total`} />}
               </div>
               {canOrders && customerOrders && customerOrders.rows.length > 0 && (
                 <Card>
@@ -215,6 +220,38 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
             </CardHeader>
             <CardContent className="px-0">
               {customerOrders.rows.length === 0 ? <p className="px-6 text-sm text-muted-foreground">No orders for this customer yet.</p> : <OrderTable rows={customerOrders.rows} linkBase={`/o/${orgSlug}/orders`} />}
+            </CardContent>
+          </Card>
+        )}
+
+        {tab === "tickets" && canTickets && customerTickets && (
+          <Card className="overflow-hidden">
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle>Support tickets</CardTitle>
+              {ticketLookups && c.status !== "merged" && <NewTicketButton size="sm" orgSlug={orgSlug} lookups={ticketLookups.lookups} presetCustomer={{ id: c.id, label: c.displayName }} />}
+            </CardHeader>
+            <CardContent className="px-0">
+              {customerTickets.rows.length === 0 ? <p className="px-6 text-sm text-muted-foreground">No tickets for this customer.</p> : <TicketTable rows={customerTickets.rows} linkBase={`/o/${orgSlug}/support/tickets`} />}
+            </CardContent>
+          </Card>
+        )}
+
+        {tab === "files" && customerFiles && (
+          <Card>
+            <CardHeader><CardTitle>Files</CardTitle></CardHeader>
+            <CardContent>
+              {customerFiles.length === 0 ? <p className="text-sm text-muted-foreground">No files yet. Files attached to this customer&apos;s tickets appear here.</p> : (
+                <ul className="divide-y text-sm">
+                  {customerFiles.map((f) => (
+                    <li key={f.id} className="flex flex-wrap items-center gap-2 py-2">
+                      <a href={`/o/${orgSlug}/support/attachments/${f.id}`} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-medium text-primary hover:underline">{f.filename}</a>
+                      <span className="text-xs text-muted-foreground">{Math.max(1, Math.round(f.size / 1024))} KB</span>
+                      <Link href={`/o/${orgSlug}/support/tickets/${f.ticketId}`} className="text-xs hover:underline">TCK-{f.ticketNumber}</Link>
+                      <span className="w-24 text-right text-xs text-muted-foreground">{formatRelative(f.createdAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         )}

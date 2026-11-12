@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { getOrder, getOrderTimeline } from "@/domains/commerce/orders";
-import { can } from "@/server/authz/guards";
+import { can, canAny } from "@/server/authz/guards";
+import { listTickets } from "@/domains/support/service";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CATEGORY_TONE, PRIORITY } from "../../support/tickets/_components/labels";
+import { loadTicketLookups } from "../../support/tickets/_components/load";
+import { NewTicketButton } from "../../support/tickets/_components/new-ticket-dialog";
 import { requireOrgContext } from "@/server/authz/request";
 import { orderNo } from "../_components/labels";
 import { OrderBadges, OrderFulfillmentCard, OrderItemsCard, OrderMoneyCard, OrderSideCard, OrderTimeline, OrderToolbar } from "../_components/order-view";
@@ -12,7 +18,12 @@ export default async function OrderPage({ params }: { params: Promise<{ orgSlug:
   if (!can(ctx, "orders.read")) forbidden();
   const o = /^[0-9a-f-]{36}$/i.test(id) ? await getOrder(ctx, id) : null;
   if (!o) notFound();
-  const timeline = await getOrderTimeline(ctx, o.id);
+  const canTickets = canAny(ctx, "tickets.read", "tickets.read_assigned");
+  const [timeline, tickets, ticketLookups] = await Promise.all([
+    getOrderTimeline(ctx, o.id),
+    canTickets ? listTickets(ctx, { view: "all", order: o.id }) : Promise.resolve(null),
+    can(ctx, "tickets.write") ? loadTicketLookups(ctx) : Promise.resolve(null),
+  ]);
   return (
     <>
       <Link href={`/o/${orgSlug}/orders`} className="text-sm text-primary hover:underline">← Orders</Link>
@@ -31,6 +42,28 @@ export default async function OrderPage({ params }: { params: Promise<{ orgSlug:
         </div>
         <div className="space-y-6">
           <OrderSideCard ctx={ctx} orgSlug={orgSlug} o={o} />
+          {tickets && (
+            <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                <CardTitle>Support tickets</CardTitle>
+                {ticketLookups && <NewTicketButton size="sm" variant="outline" label="Create ticket" orgSlug={orgSlug} lookups={ticketLookups.lookups}
+                  presetOrder={{ id: o.id, label: `ORD-${o.number}` }} presetCustomer={o.customerId && o.customerVisible ? { id: o.customerId, label: o.customerName ?? "Customer" } : null} />}
+              </CardHeader>
+              <CardContent>
+                {tickets.rows.length === 0 ? <p className="text-sm text-muted-foreground">No tickets about this order.</p> : (
+                  <ul className="divide-y text-sm">
+                    {tickets.rows.map((t) => (
+                      <li key={t.id} className="flex items-center gap-2 py-2">
+                        <Link href={`/o/${orgSlug}/support/tickets/${t.id}`} className="min-w-0 flex-1 truncate hover:underline"><span className="text-muted-foreground">TCK-{t.number}</span> {t.subject}</Link>
+                        <Badge tone={PRIORITY[t.priority].tone}>{PRIORITY[t.priority].label}</Badge>
+                        <Badge tone={CATEGORY_TONE[t.statusCategory]}>{t.statusName}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
           <OrderTimeline ctx={ctx} events={timeline} />
         </div>
       </div>

@@ -9,7 +9,8 @@ _Last updated: 2026-11-12 (Phase 3)_
 | **2** | **Customers** | ✅ **Implemented and verified** |
 | **3** | **Sales CRM + Tasks** | ✅ **Implemented and verified** |
 | **4** | **Commerce** | ✅ **Implemented and verified** |
-| 5 | Support core | ⏳ Next |
+| **5** | **Support core** | ✅ **Implemented and verified** |
+| — | **SalesGel rebrand + landing dashboard** (requested brief) | ⏳ In progress |
 | 6 | Commerce integrations (Shopify, payments, job infrastructure) | Not started |
 | 7 | Support forms, portal, SLA, routing | Not started |
 | 8 | Unified inbox | Not started |
@@ -178,3 +179,37 @@ Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting durin
 ### Known limitations
 - Tax is a single rate per order (no per-line tax classes or tax-inclusive pricing).
 - Revenue figures are per currency; there is no currency conversion by design.
+
+---
+
+## Phase 5 completion report: Support Tickets (core)
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | ticket_statuses, ticket_types, support_tickets, ticket_messages, files, ticket_attachments, ticket_record_links; composite tenant FKs, forced RLS; assignee/team FKs null only their own column; TCK-numbers | Migrations 0009–0010; integration (cross-tenant) |
+| Statuses & types | Seeded per org (New, Open, Waiting on customer, Waiting on team, Escalated, Resolved, Closed; 7 types). Custom statuses map to a standard category that drives queues and reports; one default; can't archive a status in use, the default, or the last of a core category. Settings page under **Ticket statuses & types** (`support.configure`) | Integration + E2E |
+| Tickets | Create from the Tickets page, top-bar Quick create, a customer profile or an order (prefilled). Subject, customer, related order, what the customer said, channel received, priority, type, assignee, attachments. Contact details default from the customer | Integration + E2E |
+| Conversation | Three clearly separated message kinds: **Reply to customer**, **Internal note** (highlighted, team only), **Log customer message** (with the channel it came in on). Append-only at the database level. Status follows the conversation: replying to a new ticket → Waiting on customer; a customer message on a waiting or resolved ticket → Open (counted as a reopen). Closed tickets accept only internal notes | Integration + E2E |
+| Honest delivery | Replies are saved on the ticket and marked **"Not sent to customer"**. Sending through email/WhatsApp needs channel connections (Inbox build), so nothing claims to have been sent | E2E |
+| Resolution | Resolving requires a resolution reason (answered, replacement sent, refund issued, …) with an optional note; reopening clears it and increments the reopen count | Integration + E2E |
+| Attachments | Images, PDF, Office docs, text, audio and video; up to 5 files / 4 MB per message (Vercel's request limit); file content checked against its declared type for images and PDFs; served through an authenticated route only to people who can see the ticket (`nosniff`, sandboxed CSP, private no-store); image previews in the thread; customer **Files** tab | Integration (type spoofing, executable, size, other org, unassigned agent all refused) + E2E |
+| Links | Tickets link to orders and leads; order page shows its tickets and "Create ticket"; ticket list filter by order | Integration + E2E |
+| Queues | Views: My open, Unassigned, All open, Waiting, Escalated, Resolved, Closed, All; search by subject, TCK-number or customer; filter by priority, assignee, type; sort by activity, priority, newest, oldest; pagination; wide drawer with the full workspace; open-ticket count badge in the sidebar | Integration + E2E |
+| Support Dashboard | Open, unassigned, urgent/high, awaiting our reply (now), created and resolved (30 days), median first reply time, priority queue. **No SLA figures** until SLA policies exist (Phase 7) | Integration + E2E |
+| Customer profile | Real **Open tickets** metric, Tickets tab, Files tab, ticket events on the timeline; **customer merge moves tickets, undo moves them back** | Integration + E2E |
+| Permissions | `tickets.read` sees all; `tickets.read_assigned` (support agents) sees only tickets assigned to them, and tickets they create are assigned to them; `tickets.assign` to reassign; sales reps have no ticket access; customer names masked when not visible; notifications on assignment and when a customer replies | Integration + E2E |
+
+**Test totals:** 133 unit/integration tests and 34 end-to-end tests, all passing, along with lint, typecheck and the production build.
+
+### Implemented but not fully tested
+- Teams on tickets (`team_id`) are stored and validated; no team picker in the UI yet (routing by team is Phase 7).
+- Linking leads to tickets works in the service; the UI only offers linking orders.
+
+### Blocked by external setup
+- **Sending replies to customers** (email, WhatsApp, Instagram, Messenger, SMS) needs channel connections and credentials (Inbox, Phase 8).
+- Larger attachments (over 4 MB) need object storage; files currently live in Postgres behind a storage interface that can switch to object storage without changing callers.
+
+### Not yet implemented (later phases)
+- Ticket forms, customer portal, SLA policies and business hours, routing rules, escalation (Phase 7); CSAT surveys and knowledge base (Phase 10).

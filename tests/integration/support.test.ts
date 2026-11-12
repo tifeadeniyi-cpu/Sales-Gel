@@ -146,7 +146,7 @@ describe("tickets", () => {
     expect(Buffer.from(file!.content!).equals(PNG)).toBe(true);
     await expect(addTicketMessage(ctx, t.id, { kind: "note", body: "x" }, [{ filename: "fake.png", mimeType: "image/png", data: Buffer.from("not an image") }])).rejects.toThrow(/doesn't match/);
     await expect(addTicketMessage(ctx, t.id, { kind: "note", body: "x" }, [{ filename: "run.exe", mimeType: "application/x-msdownload", data: Buffer.from("MZ") }])).rejects.toThrow(/supported file type/);
-    await expect(addTicketMessage(ctx, t.id, { kind: "note", body: "x" }, [{ filename: "big.txt", mimeType: "text/plain", data: Buffer.alloc(10 * 1024 * 1024 + 1, 1) }])).rejects.toThrow(/10 MB/);
+    await expect(addTicketMessage(ctx, t.id, { kind: "note", body: "x" }, [{ filename: "big.txt", mimeType: "text/plain", data: Buffer.alloc(4 * 1024 * 1024 + 1, 1) }])).rejects.toThrow(/4 MB/);
     const other = await setup("OtherDesk");
     expect(await getTicketAttachment(other.ctx, att.id)).toBeNull();
     const { ctx: agent } = await addMember(ctx, "support_agent");

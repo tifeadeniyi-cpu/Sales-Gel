@@ -13,6 +13,7 @@ interface SidebarProps {
   orgs: OrgOption[];
   groups: { label: string; items: NavItem[] }[];
   unread: number;
+  counts?: Record<string, number>;
 }
 
 export function Sidebar(props: SidebarProps) {
@@ -39,7 +40,7 @@ export function Sidebar(props: SidebarProps) {
       <div className="flex h-14 items-center border-b px-3">
         <OrgSwitcher current={{ slug: props.orgSlug, name: props.orgName }} orgs={props.orgs} collapsed={collapsed} />
       </div>
-      <NavList orgSlug={props.orgSlug} groups={props.groups} unread={props.unread} collapsed={collapsed} />
+      <NavList orgSlug={props.orgSlug} groups={props.groups} unread={props.unread} counts={props.counts} collapsed={collapsed} />
       <button
         type="button"
         onClick={toggle}
@@ -64,7 +65,7 @@ export function MobileNav(props: SidebarProps) {
         <div className="flex h-14 items-center border-b px-3 pr-10">
           <OrgSwitcher current={{ slug: props.orgSlug, name: props.orgName }} orgs={props.orgs} />
         </div>
-        <NavList orgSlug={props.orgSlug} groups={props.groups} unread={props.unread} onNavigate={() => setOpen(false)} />
+        <NavList orgSlug={props.orgSlug} groups={props.groups} unread={props.unread} counts={props.counts} onNavigate={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );

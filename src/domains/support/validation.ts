@@ -93,7 +93,8 @@ export const ticketFiltersSchema = z.object({
 });
 export type TicketFilters = Partial<z.input<typeof ticketFiltersSchema>>;
 
-export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+/** Per message, all files combined (Vercel request body limit is 4.5 MB). */
+export const ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024;
 export const ATTACHMENT_MAX_FILES = 5;
 export const ATTACHMENT_MIME = [
   "image/png", "image/jpeg", "image/gif", "image/webp", "image/heic",

@@ -18,6 +18,7 @@ export function RecordDrawer({
   prevId,
   nextId,
   children,
+  wide,
 }: {
   title: string;
   subtitle?: React.ReactNode;
@@ -25,6 +26,8 @@ export function RecordDrawer({
   prevId?: string | null;
   nextId?: string | null;
   children: React.ReactNode;
+  /** Wider panel for two-column record workspaces (e.g. tickets). */
+  wide?: boolean;
 }) {
   const { set } = useUrlParams();
   const close = () => set({ open: null });
@@ -44,7 +47,7 @@ export function RecordDrawer({
     <D.Root open onOpenChange={(o) => !o && close()}>
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-40 bg-ink/30" />
-        <D.Content className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l bg-card shadow-xl focus:outline-none" aria-describedby={undefined}>
+        <D.Content className={`fixed inset-y-0 right-0 z-50 flex w-full ${wide ? "max-w-5xl" : "max-w-2xl"} flex-col border-l bg-card shadow-xl focus:outline-none`} aria-describedby={undefined}>
           <div className="flex items-center gap-2 border-b px-4 py-3">
             <div className="min-w-0 flex-1">
               <D.Title className="truncate text-lg font-semibold">{title}</D.Title>
