@@ -64,6 +64,20 @@
       "when": 1794490699095,
       "tag": "0008_commerce_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794522818571,
+      "tag": "0009_support",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794522836014,
+      "tag": "0010_support_rls",
+      "breakpoints": true
     }
   ]
 }

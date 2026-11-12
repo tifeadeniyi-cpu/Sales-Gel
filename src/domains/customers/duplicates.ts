@@ -8,6 +8,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@/server/errors";
 import { leadsMergeMover } from "@/domains/sales/merge";
 import { taskRelationsMergeMover } from "@/domains/tasks/merge";
 import { ordersMergeMover } from "@/domains/commerce/merge";
+import { ticketsMergeMover } from "@/domains/support/merge";
 import { loadForWrite, readScope, requirePerm } from "./internal";
 import { normalizeEmail, normalizeHandle, normalizePhone } from "./normalize";
 import {
@@ -177,6 +178,7 @@ const MOVERS: MoverDef[] = [
   leadsMergeMover,
   taskRelationsMergeMover,
   ordersMergeMover,
+  ticketsMergeMover,
 ];
 
 export function registerMergeMover(mover: MoverDef) {
