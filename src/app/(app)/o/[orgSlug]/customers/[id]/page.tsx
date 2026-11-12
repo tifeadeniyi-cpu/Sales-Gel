@@ -7,7 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCustomer, getCustomerTimeline, listNotes } from "@/domains/customers/service";
 import { formatCustomerNumber } from "@/domains/customers/normalize";
 import { requireOrgContext } from "@/server/authz/request";
-import { canAny } from "@/server/authz/guards";
+import { can, canAny } from "@/server/authz/guards";
+import { listLeads, listPipelines } from "@/domains/sales/service";
+import { listTasks } from "@/domains/tasks/service";
+import { formatMoney } from "@/lib/money";
+import { RelatedTasks } from "../../tasks/_components/related-tasks";
+import { NewLeadDialog } from "../../leads/_components/new-lead-dialog";
 import { describeAudit } from "@/lib/audit-labels";
 import { formatDateTime, formatRelative, initials } from "@/lib/utils";
 import { ConsentPanel } from "../_components/consent-panel";
@@ -21,10 +26,8 @@ import { customerPerms, loadCustomerLookups } from "../_components/load";
 const LATER_TABS: Record<string, { label: string; phase: number; what: string }> = {
   conversations: { label: "Conversations", phase: 8, what: "Messages from email, WhatsApp, Instagram and Messenger" },
   orders: { label: "Orders", phase: 4, what: "Online and manual orders" },
-  leads: { label: "Leads", phase: 3, what: "Sales opportunities" },
   tickets: { label: "Tickets", phase: 5, what: "Support tickets" },
   payments: { label: "Payments", phase: 4, what: "Payments and refunds" },
-  tasks: { label: "Tasks", phase: 3, what: "Follow-ups and to-dos" },
   files: { label: "Files", phase: 5, what: "Attachments" },
 };
 
@@ -42,12 +45,22 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
     tab === "notes" || tab === "overview" ? listNotes(ctx, c.id) : Promise.resolve([]),
     tab === "timeline" ? getCustomerTimeline(ctx, c.id) : Promise.resolve([]),
   ]);
-  if (!["overview", "timeline", "notes", ...Object.keys(LATER_TABS)].includes(tab)) redirect(`${base}/${c.id}`);
+  if (!["overview", "timeline", "notes", "leads", "tasks", ...Object.keys(LATER_TABS)].includes(tab)) redirect(`${base}/${c.id}`);
+  const canLeads = canAny(ctx, "leads.read", "leads.read_assigned");
+  const canTasks = can(ctx, "tasks.read");
+  const [customerLeads, customerTasks, pipelines] = await Promise.all([
+    canLeads && (tab === "leads" || tab === "overview") ? listLeads(ctx, { customer: c.id, status: "all" }) : Promise.resolve([]),
+    canTasks && (tab === "tasks" || tab === "overview") ? listTasks(ctx, { scope: "all", status: "all", entityType: "customer", entityId: c.id }) : Promise.resolve([]),
+    canLeads && tab === "leads" ? listPipelines(ctx) : Promise.resolve([]),
+  ]);
+  const memberOpts = lookups.members.map((m) => ({ membershipId: m.membershipId, name: m.name }));
 
   const tabs = [
     { key: "overview", label: "Overview" },
     { key: "timeline", label: "Timeline" },
     { key: "notes", label: `Notes${notes.length ? ` (${notes.length})` : ""}` },
+    ...(canLeads ? [{ key: "leads", label: "Leads" }] : []),
+    ...(canTasks ? [{ key: "tasks", label: "Tasks" }] : []),
     ...Object.entries(LATER_TABS).map(([key, t]) => ({ key, label: t.label })),
   ].map((t) => ({ ...t, href: t.key === "overview" ? `${base}/${c.id}` : `${base}/${c.id}?tab=${t.key}` }));
   const editable = perms.write && c.status !== "merged";
@@ -86,7 +99,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
             <div className="space-y-6 lg:col-span-2">
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {[
-                  ["Lifetime spending", 4], ["Total orders", 4], ["Average order", 4], ["Last purchase", 4], ["Open leads", 3], ["Open tickets", 5],
+                  ["Lifetime spending", 4], ["Total orders", 4], ["Average order", 4], ["Last purchase", 4], ["Open tickets", 5],
                 ].map(([label, phase]) => (
                   <Card key={label as string} className="bg-card/60">
                     <CardContent className="p-3">
@@ -96,6 +109,26 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                   </Card>
                 ))}
               </div>
+              {canLeads && (
+                <Card>
+                  <CardHeader><CardTitle>Open leads</CardTitle></CardHeader>
+                  <CardContent>
+                    {customerLeads.filter((l) => l.status === "open").length === 0 ? <p className="text-sm text-muted-foreground">No open leads.</p> : (
+                      <ul className="divide-y text-sm">
+                        {customerLeads.filter((l) => l.status === "open").map((l) => (
+                          <li key={l.id} className="flex items-center gap-2 py-2"><Link href={`/o/${orgSlug}/leads/${l.id}`} className="flex-1 font-medium hover:underline">{l.title}</Link><span className="text-xs text-muted-foreground">{l.stage?.name}</span><span className="font-medium">{formatMoney(l.valueAmount, l.currency)}</span></li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              {canTasks && (
+                <Card>
+                  <CardHeader><CardTitle>Tasks</CardTitle></CardHeader>
+                  <CardContent><RelatedTasks orgSlug={orgSlug} tasks={customerTasks} members={memberOpts} currentMembershipId={ctx.membershipId} relation={{ type: "customer", id: c.id, label: c.displayName }} canWrite={can(ctx, "tasks.write") && c.status !== "merged"} canSearchLeads={canLeads} canSearchCustomers /></CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
                 <CardContent>
@@ -118,6 +151,42 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {tab === "leads" && canLeads && (
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle>Leads</CardTitle>
+              {can(ctx, "leads.write") && c.status !== "merged" && (
+                <NewLeadDialog
+                  orgSlug={orgSlug}
+                  pipelines={pipelines.map((p) => ({ id: p.id, name: p.name, stages: p.stages.map((s) => ({ id: s.id, name: s.name, category: s.category })) }))}
+                  members={memberOpts}
+                  defaultCurrency={c.preferredCurrency ?? ctx.defaultCurrency}
+                  canAssign={can(ctx, "leads.read")}
+                  presetCustomer={{ id: c.id, label: c.displayName, sub: `CUS-${c.number}` }}
+                />
+              )}
+            </CardHeader>
+            <CardContent>
+              {customerLeads.length === 0 ? <p className="text-sm text-muted-foreground">No leads for this customer yet.</p> : (
+                <ul className="divide-y text-sm">
+                  {customerLeads.map((l) => (
+                    <li key={l.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                      <Link href={`/o/${orgSlug}/leads/${l.id}`} className="flex-1 font-medium hover:underline">{l.title}</Link>
+                      <span className="text-xs text-muted-foreground">{l.stage?.name}</span>
+                      <Badge tone={l.status === "won" ? "success" : l.status === "lost" ? "danger" : "info"}>{l.status}</Badge>
+                      <span className="w-28 text-right font-medium">{formatMoney(l.valueAmount, l.currency)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {tab === "tasks" && canTasks && (
+          <Card><CardContent className="pt-5"><RelatedTasks orgSlug={orgSlug} tasks={customerTasks} members={memberOpts} currentMembershipId={ctx.membershipId} relation={{ type: "customer", id: c.id, label: c.displayName }} canWrite={can(ctx, "tasks.write") && c.status !== "merged"} canSearchLeads={canLeads} canSearchCustomers /></CardContent></Card>
         )}
 
         {tab === "notes" && (

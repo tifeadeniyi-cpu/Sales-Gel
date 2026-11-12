@@ -12,6 +12,7 @@ import { parseInput } from "@/server/validate";
 import { newId } from "@/lib/ids";
 import { randomToken, sha256 } from "@/lib/crypto";
 import { notify } from "@/domains/platform/notifications";
+import { ensureDefaultPipeline } from "@/domains/sales/service";
 import {
   invitations,
   memberships,
@@ -85,6 +86,7 @@ export async function createOrganization(actor: Actor, input: CreateOrganization
         userId: actor.id,
         roleId: roleIds.owner,
       });
+      await ensureDefaultPipeline(tx, orgId);
       const ctx = { orgId, userId: actor.id };
       await audit(tx, ctx, { action: "organization.created", entityType: "organization", entityId: orgId, metadata: { name: data.name, slug: data.slug } });
       await emit(tx, orgId, "organization.created", { organizationId: orgId });

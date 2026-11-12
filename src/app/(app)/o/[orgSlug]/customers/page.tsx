@@ -11,6 +11,7 @@ import { getCustomer, getCustomerStats, listCustomerIds, listCustomers, listNote
 import { formatCustomerNumber } from "@/domains/customers/normalize";
 import { canAny } from "@/server/authz/guards";
 import { requireOrgContext } from "@/server/authz/request";
+import { ValidationError } from "@/server/errors";
 import { CustomerFilters } from "./_components/customer-filters";
 import { CustomerProfile } from "./_components/customer-profile";
 import { CustomerTable } from "./_components/customer-table";
@@ -42,7 +43,9 @@ export default async function CustomersPage({ params, searchParams }: { params: 
   let list;
   try {
     list = await listCustomers(ctx, filters);
-  } catch {
+  } catch (err) {
+    // Only fall back for invalid filter values in the URL; real errors must surface.
+    if (!(err instanceof ValidationError)) throw err;
     list = await listCustomers(ctx, {});
   }
   const [stats, lookups] = await Promise.all([getCustomerStats(ctx), loadCustomerLookups(ctx)]);

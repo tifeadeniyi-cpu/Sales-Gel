@@ -242,6 +242,8 @@ describe("tasks", () => {
     expect((await listTasks(ctx, { due: "week" })).map((t) => t.title)).toEqual(["Later"]);
     expect((await listTasks(ctx, { due: "none" })).map((t) => t.title)).toEqual(["Someday"]);
     expect(await getTaskStats(ctx)).toMatchObject({ overdue: 1, open: 3 });
+    const windowed = await listTasks(ctx, { status: "all", from: new Date(Date.now() - 2 * 86_400_000), to: new Date(Date.now() + 86_400_000) });
+    expect(windowed.map((t) => t.title)).toEqual(["Overdue one"]);
   });
 
   it("comments notify mentions and assignee; edits and deletes are guarded", async () => {

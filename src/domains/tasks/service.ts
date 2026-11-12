@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { customers } from "@/domains/customers/schema";
 import { memberships } from "@/domains/identity/schema";
@@ -247,8 +247,8 @@ export async function listTasks(ctx: OrgContext, filters: TaskFilters = {}) {
     if (f.due === "today") conds.push(sql`${localDue} = ${localToday}`);
     if (f.due === "week") conds.push(sql`${localDue} between ${localToday} and ${localToday} + 7`);
     if (f.due === "none") conds.push(isNull(tasks.dueAt));
-    if (f.from) conds.push(sql`${tasks.dueAt} >= ${f.from}`);
-    if (f.to) conds.push(sql`${tasks.dueAt} < ${f.to}`);
+    if (f.from) conds.push(gte(tasks.dueAt, f.from));
+    if (f.to) conds.push(lt(tasks.dueAt, f.to));
     if (f.entityType && f.entityId) {
       conds.push(sql`exists (select 1 from ${taskRelations} r where r.task_id = ${tasks.id} and r.entity_type = ${f.entityType} and r.entity_id = ${f.entityId})`);
     }

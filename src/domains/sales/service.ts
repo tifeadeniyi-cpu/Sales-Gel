@@ -98,6 +98,10 @@ async function insertPipeline(tx: Tx, orgId: string, name: string, isDefault: bo
 
 /** Every org gets a default "Sales" pipeline with the standard stages the first time it's needed. */
 export async function ensureDefaultPipeline(tx: Tx, orgId: string) {
+  const [quick] = await tx.select({ id: pipelines.id }).from(pipelines).where(eq(pipelines.organizationId, orgId)).limit(1);
+  if (quick) return;
+  // Serialize concurrent first-use requests for this org so only one default pipeline is created.
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`pipelines:${orgId}`}))`);
   const [existing] = await tx.select({ id: pipelines.id }).from(pipelines).where(and(eq(pipelines.organizationId, orgId), isNull(pipelines.archivedAt))).limit(1);
   if (existing) return;
   await insertPipeline(tx, orgId, "Sales", true);

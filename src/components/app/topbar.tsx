@@ -1,7 +1,7 @@
 "use client";
 import type React from "react";
 import Link from "next/link";
-import { Bell, CircleHelp, LogOut, Plus, Search, Settings, UserPlus, UserRound } from "lucide-react";
+import { Bell, CheckCircle2, CircleHelp, KanbanSquare, LogOut, Plus, Search, Settings, UserPlus, UserRound } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,8 @@ export function Topbar({
   unread,
   canInvite,
   canCreateCustomer,
+  canCreateLead,
+  canCreateTask,
   mobileNav,
 }: {
   orgSlug: string;
@@ -22,6 +24,8 @@ export function Topbar({
   unread: number;
   canInvite: boolean;
   canCreateCustomer: boolean;
+  canCreateLead: boolean;
+  canCreateTask: boolean;
   mobileNav?: React.ReactNode;
 }) {
   const base = `/o/${orgSlug}`;
@@ -54,6 +58,20 @@ export function Topbar({
                 </Link>
               </DropdownMenuItem>
             )}
+            {canCreateLead && (
+              <DropdownMenuItem asChild>
+                <Link href={`${base}/leads`}>
+                  <KanbanSquare /> Lead
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {canCreateTask && (
+              <DropdownMenuItem asChild>
+                <Link href={`${base}/tasks`}>
+                  <CheckCircle2 /> Task
+                </Link>
+              </DropdownMenuItem>
+            )}
             {canInvite && (
               <DropdownMenuItem asChild>
                 <Link href={`${base}/team?invite=1`}>
@@ -62,7 +80,7 @@ export function Topbar({
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="font-normal">Lead, order, ticket and task creation arrive in Phases 3–5.</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal">Order and ticket creation arrive in Phases 4–5.</DropdownMenuLabel>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="ghost" size="icon" asChild>

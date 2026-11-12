@@ -122,3 +122,17 @@ export async function runImportAction(orgSlug: string, csvText: string, mapping:
   return res;
 }
 
+
+export async function searchCustomersAction(orgSlug: string, q: string) {
+  const ctx = await requireOrgContext(orgSlug);
+  return runAction(async () => (await svc.searchCustomers(ctx, q, 8)).map((c) => ({ id: c.id, label: c.displayName, sub: `CUS-${c.number}${c.primaryEmail ? ` · ${c.primaryEmail}` : ""}` })));
+}
+
+export async function searchLeadsAction(orgSlug: string, q: string) {
+  const ctx = await requireOrgContext(orgSlug);
+  return runAction(async () => {
+    const { listLeads } = await import("@/domains/sales/service");
+    if (!ctx.permissions.has("leads.read") && !ctx.permissions.has("leads.read_assigned")) return [];
+    return (await listLeads(ctx, { q, status: "all" }, 8)).map((l) => ({ id: l.id, label: l.title, sub: `LEAD-${l.number}${l.customerName ? ` · ${l.customerName}` : ""}` }));
+  });
+}

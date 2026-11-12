@@ -1,14 +1,14 @@
 # Progress & Phase Status
 
-_Last updated: 2026-11-12_
+_Last updated: 2026-11-12 (Phase 3)_
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Planning docs (architecture, schema, authz, routes, components, deps, tests, external APIs) | ✅ Done (`docs/`) |
 | **1** | **Foundation** | ✅ **Implemented and verified** |
 | **2** | **Customers** | ✅ **Implemented and verified** |
-| 3 | Sales CRM + Tasks | ⏳ Next |
-| 4 | Commerce | Not started |
+| **3** | **Sales CRM + Tasks** | ✅ **Implemented and verified** |
+| 4 | Commerce | ⏳ Next |
 | 5 | Support core | Not started |
 | 6 | Commerce integrations (Shopify, payments, job infrastructure) | Not started |
 | 7 | Support forms, portal, SLA, routing | Not started |
@@ -16,6 +16,7 @@ _Last updated: 2026-11-12_
 | 9 | Marketing & automation | Not started |
 | 10 | Analytics, knowledge base | Not started |
 | 11 | Billing & production hardening | Not started |
+| Add-on | Phone & Calls (Twilio): see `docs/06-phone-system-plan.md` | Planned (9 sub-phases, after Phase 8) |
 
 ---
 
@@ -99,3 +100,37 @@ _Last updated: 2026-11-12_
 - Lifetime spend, order count, AOV and last purchase on the overview: they need Orders (Phase 4) and are shown as Phase 4 placeholders, not fake numbers.
 - Saved views and column configuration on the list (shared DataTable work planned with Leads in Phase 3).
 - Customer portal identity and external-platform identity sync (Phases 6–8).
+
+---
+
+## Phase 3 completion report: Leads, Pipelines, Tasks & Activities
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | pipelines, pipeline_stages, leads, lead_stage_history (append-only), lead_products, tasks, task_relations (one task, many contexts), task_comments; composite FKs (a lead's stage must belong to its pipeline and org); forced RLS; owner/assignee FKs null only their own column | Migrations 0005–0006; integration tests |
+| Pipelines | Default "Sales" pipeline with the spec's 7 stages, seeded per org (concurrency-safe); multiple pipelines; rename; set default; archive (blocked while open leads exist; never the last one) | Integration |
+| Stages | Add (open stages slot before won/lost), rename, color, probability, open/won/lost type, required fields, reorder, archive with forced lead move (same type; history recorded); can't change type with leads in it; always ≥1 open stage | Integration + E2E |
+| Leads | Create with customer picker, value (integer minor units; per-currency), source, priority, owner, expected close, interested products; reps who can only see their own leads own what they create; owner notified; LEAD-numbers | Integration + E2E |
+| Kanban board | Drag-and-drop between and within stages (persisted order), optimistic with rollback on refusal, keyboard-accessible "Move to" control on every card, per-stage counts and per-currency totals, lost-reason prompt | E2E (drag persists after reload; refused move snaps back with explanation) |
+| Stage rules | Required fields enforced on move, create and when clearing a field; lost requires a reason; won/lost set `closed_at`; reopen clears it; won deals never auto-create orders | Integration + E2E |
+| Lead detail & drawer | Clickable stage progress bar, Won/Lost/Reopen, inline editing of every field, products, notes, tasks, stage history, activity timeline, archive/restore | E2E |
+| Lead list view | Table with stage, value, priority, rep, close date; status filter | Build + render |
+| Stats | Open leads, pipeline value and weighted forecast **per currency**, 90-day win rate; Command Center shows live Active leads, Pipeline value, My tasks due today, My overdue follow-ups | Integration + E2E |
+| Tasks | Shared task entity linked to customers and/or leads without duplication; title, details, status, priority, assignee (defaults to creator), due date, repeat (daily/weekly/monthly, end-of-month safe, exactly one next occurrence), green completion check circles, comments, @mentions, assignment and comment notifications | Integration + E2E |
+| Task views | My / All / Created by me; open / completed / all; overdue / today / next 7 days / no date (org timezone); list, board (drag between To do / In progress / Done) and month calendar; task drawer | E2E |
+| Customer integration | Customer profile shows open leads and tasks; Leads and Tasks tabs; new lead pre-linked to the customer; lead and task events appear in the customer timeline; **customer merges move leads and task links, and undo moves them back** | Integration + E2E |
+| Permissions | leads.read vs read_assigned in every query; customer names masked as "Restricted customer" when the user can't see that customer; tasks can't link to records the user can't see; pipelines.manage for configuration | Integration + E2E (rep can't open settings, can't see unassigned leads) |
+| Tenant isolation | Leads, stages, customers and tasks from another org can't be read, moved, linked or assigned | Integration |
+
+**Test totals:** 92 unit/integration tests and 25 end-to-end tests. All passing.
+
+### Implemented but not fully tested
+- Pipeline rename uses a browser prompt (works; not covered by E2E).
+- Task board drag-and-drop (the select fallback is covered).
+
+### Blocked or deferred
+- **Overdue and reminder notifications** need the background job scheduler (Phase 6). Overdue tasks are highlighted everywhere and counted on the Command Center today.
+- Linking won leads to orders: Phase 4.
+- Saved views / column configuration: still pending (shared table work).

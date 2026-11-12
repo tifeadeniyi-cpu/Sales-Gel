@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listInvitations, listMembers } from "@/domains/identity/service";
 import { getCustomerStats } from "@/domains/customers/service";
+import { getLeadStats } from "@/domains/sales/service";
+import { getTaskStats } from "@/domains/tasks/service";
+import { formatMoney } from "@/lib/money";
 import { listAuditLogs } from "@/domains/platform/audit-queries";
 import { requireOrgContext } from "@/server/authz/request";
 import { can } from "@/server/authz/guards";
@@ -14,15 +17,11 @@ import { describeAudit } from "@/lib/audit-labels";
 
 const WIDGETS: { label: string; phase: number }[] = [
   { label: "Revenue", phase: 4 },
-  { label: "Active leads", phase: 3 },
-  { label: "Pipeline value", phase: 3 },
   { label: "Pending orders", phase: 4 },
   { label: "Unpaid orders", phase: 4 },
   { label: "Unread conversations", phase: 8 },
   { label: "Open tickets", phase: 5 },
   { label: "SLA breaches", phase: 7 },
-  { label: "Tasks due today", phase: 3 },
-  { label: "Overdue follow-ups", phase: 3 },
   { label: "Conversion rate", phase: 10 },
 ];
 
@@ -38,6 +37,17 @@ export default async function CommandCenter({ params }: { params: Promise<{ orgS
     can(ctx, "audit.read") ? listAuditLogs(ctx, { limit: 8 }) : Promise.resolve(null),
   ]);
   const customerStats = can(ctx, "customers.read") || can(ctx, "customers.read_assigned") ? await getCustomerStats(ctx) : null;
+  const [leadStats, taskStats] = await Promise.all([getLeadStats(ctx), getTaskStats(ctx)]);
+  const moneyText = (t: Record<string, number>) => Object.entries(t).map(([c, v]) => formatMoney(v, c)).join(" · ") || "—";
+  const live: { label: string; value: string; href: string; tone?: string }[] = [];
+  if (leadStats) {
+    live.push({ label: "Active leads", value: String(leadStats.active), href: `${base}/leads` });
+    live.push({ label: "Pipeline value", value: moneyText(leadStats.pipelineValue), href: `${base}/leads` });
+  }
+  if (taskStats) {
+    live.push({ label: "My tasks due today", value: String(taskStats.dueToday), href: `${base}/tasks?due=today` });
+    live.push({ label: "My overdue follow-ups", value: String(taskStats.overdue), href: `${base}/tasks?due=overdue`, tone: taskStats.overdue > 0 ? "text-danger" : undefined });
+  }
 
   const checklist = [
     { label: "Create your workspace", done: true, href: `${base}/settings` },
@@ -124,6 +134,16 @@ export default async function CommandCenter({ params }: { params: Promise<{ orgS
             </Link>
           </>
         )}
+        {live.map((w) => (
+          <Link key={w.label} href={w.href}>
+            <Card className="h-full transition hover:border-primary/40">
+              <CardContent className="p-4">
+                <div className="text-sm font-medium text-ink/70">{w.label}</div>
+                <div className={`truncate text-2xl font-semibold ${w.tone ?? ""}`} title={w.value}>{w.value}</div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
         {WIDGETS.map((w) => (
           <Card key={w.label} className="bg-card/60">
             <CardContent className="flex items-center justify-between p-4">

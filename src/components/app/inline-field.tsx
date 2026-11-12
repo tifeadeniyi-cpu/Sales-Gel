@@ -18,6 +18,8 @@ export function InlineText({
   placeholder = "Add…",
   disabled,
   className,
+  type = "text",
+  display,
 }: {
   value: string | null;
   onSave: SaveFn;
@@ -25,6 +27,9 @@ export function InlineText({
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  type?: "text" | "date" | "number";
+  /** Formats the saved value for display (e.g. money). */
+  display?: (v: string | null) => string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
@@ -49,7 +54,8 @@ export function InlineText({
     });
   };
 
-  if (disabled) return <span className={cn("text-sm", !shown && "text-muted-foreground", className)}>{shown || "—"}</span>;
+  const shownText = display ? display(shown) : shown;
+  if (disabled) return <span className={cn("text-sm", !shown && "text-muted-foreground", className)}>{shownText || "—"}</span>;
 
   if (!editing) {
     return (
@@ -59,7 +65,7 @@ export function InlineText({
         className={cn("group -mx-1 flex min-h-7 w-full items-center gap-1 rounded px-1 text-left text-sm hover:bg-muted", !shown && "text-muted-foreground", className)}
         aria-label={`Edit ${label}`}
       >
-        <span className="flex-1 truncate">{shown || placeholder}</span>
+        <span className="flex-1 truncate">{shown ? shownText : placeholder}</span>
         <Pencil className="size-3 opacity-0 group-hover:opacity-60" aria-hidden />
       </button>
     );
@@ -69,6 +75,7 @@ export function InlineText({
       <div className="flex items-center gap-1">
         <input
           ref={inputRef}
+          type={type}
           aria-label={label}
           aria-invalid={!!error}
           className="h-7 w-full rounded border bg-card px-2 text-sm aria-invalid:border-danger"
