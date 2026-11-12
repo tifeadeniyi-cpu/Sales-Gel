@@ -16,6 +16,7 @@ import { newId } from "@/lib/ids";
 import { formatMoney, parseMoney } from "@/lib/money";
 import { computeTotals, deriveFulfillmentStatus, derivePaymentStatus, percentToBps } from "./math";
 import { ensureManualStore } from "./products";
+import { localDate, zonedMidnight } from "@/domains/reporting/period";
 import { fulfillmentItems, fulfillments, orderItems, orders, payments, productVariants, products, refunds } from "./schema";
 import {
   fulfillmentInputSchema,
@@ -229,13 +230,25 @@ async function recompute(tx: Tx, orderId: string) {
 }
 
 /**
+ * A date-only payment date ("2026-11-12") means that day in the workspace's timezone: now if it's
+ * today, otherwise midday local time — never midnight UTC, which would land on the wrong day.
+ */
+function localPaymentDate(v: string | Date | undefined, tz: string): string | Date | undefined {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const [y, m, d] = v.split("-").map(Number);
+  const today = localDate(new Date(), tz);
+  if (today.y === y && today.m === m && today.d === d) return new Date();
+  return new Date(zonedMidnight(y, m, d, tz).getTime() + 12 * 3_600_000);
+}
+
+/**
  * Records money received outside a connected provider (cash, bank transfer…). Clearly labelled as
  * staff-recorded. Provider payments (Stripe, Paystack…) are created only from verified webhooks in Phase 6;
  * clicking a payment link is never treated as payment.
  */
 export async function recordPayment(ctx: OrgContext, orderId: string, input: { amount: string | number; method: string; reference?: string | null; note?: string | null; receivedAt?: string | Date }) {
   need(ctx, "payments.record", "orders.financials");
-  const data = parseInput(paymentInputSchema, input);
+  const data = parseInput(paymentInputSchema, { ...input, receivedAt: localPaymentDate(input.receivedAt, ctx.timezone) });
   return withTenant(ctx, async (tx) => {
     const o = await loadOrderForWrite(tx, ctx, orderId);
     if (o.orderStatus === "cancelled") throw new ConflictError("Payments can't be recorded on a cancelled order.");

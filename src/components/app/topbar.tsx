@@ -138,7 +138,7 @@ export function Topbar({
           </Link>
         </Button>
         <DropdownMenu>
-          <DropdownMenuTrigger className="ml-1 rounded-full" aria-label="Account menu">
+          <DropdownMenuTrigger className="ml-1 rounded-full" aria-label="Your account">
             <Avatar name={user.name} src={user.image} />
           </DropdownMenuTrigger>
           <DropdownMenuContent>

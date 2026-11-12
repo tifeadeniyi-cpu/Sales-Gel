@@ -122,8 +122,7 @@ test("customer page shows the lead and lets you add tasks; command center widget
   await expect(page.getByRole("link", { name: "Wedding catering" })).toBeVisible();
 
   await page.goto(`/o/${slug}`);
-  await expect(page.getByText("Active leads")).toBeVisible();
-  await expect(page.getByText("$2,500.50")).toBeVisible();
+  await expect(page.getByTestId("card-deals")).toContainText("$2,500.50");
 });
 
 test("sales reps can't open pipeline settings", async ({ page }) => {
@@ -144,7 +143,7 @@ test("sales reps can't open pipeline settings", async ({ page }) => {
   await page.getByLabel("Password").fill(rep.password);
   await page.getByRole("button", { name: "Create account" }).click();
   await page.getByRole("button", { name: "Accept invitation" }).click();
-  await expect(page.getByText("You're signed in as Sales Representative")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account menu" }).filter({ hasText: "Sales Representative" })).toBeVisible();
 
   await page.goto(`/o/${slug}/deals`);
   await expect(page.getByRole("link", { name: "Pipeline settings" })).toHaveCount(0);

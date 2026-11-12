@@ -28,6 +28,6 @@ export async function signUpWithOrg(page: Page, u: TestUser, orgName: string) {
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("Business name").fill(orgName);
   await page.getByRole("button", { name: "Create workspace" }).click();
-  await expect(page.getByRole("heading", { name: "Command Center" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening)|Welcome back/ })).toBeVisible();
   return new URL(page.url()).pathname.split("/")[2];
 }

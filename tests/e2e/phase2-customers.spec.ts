@@ -10,7 +10,7 @@ test.describe.configure({ mode: "serial" });
 
 test("create a customer with contact details and tags", async ({ page }) => {
   slug = await signUpWithOrg(page, owner, `Naija Pantry ${run}`);
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Customers & Contacts" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Contacts" }).click();
   await expect(page.getByText("No customers yet")).toBeVisible();
   await page.getByRole("link", { name: "Add customer" }).first().click();
 

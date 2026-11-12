@@ -154,7 +154,7 @@ test("support agents only see tickets assigned to them", async ({ page, browser 
   await p2.getByLabel("Password").fill(agent.password);
   await p2.getByRole("button", { name: "Create account" }).click();
   await p2.getByRole("button", { name: "Accept invitation" }).click();
-  await expect(p2.getByText("You're signed in as Support Agent")).toBeVisible();
+  await expect(p2.getByRole("button", { name: "Account menu" }).filter({ hasText: "Support Agent" })).toBeVisible();
   await p2.goto(`/o/${slug}/support/tickets`);
   await expect(p2.getByText("No tickets assigned to you")).toBeVisible();
   await p2.goto(ticketUrl);

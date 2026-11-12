@@ -10,8 +10,8 @@ _Last updated: 2026-11-12 (Phase 3)_
 | **3** | **Sales CRM + Tasks** | ✅ **Implemented and verified** |
 | **4** | **Commerce** | ✅ **Implemented and verified** |
 | **5** | **Support core** | ✅ **Implemented and verified** |
-| — | **SalesGel rebrand + landing dashboard** (requested brief) | ⏳ In progress |
-| 6 | Commerce integrations (Shopify, payments, job infrastructure) | Not started |
+| — | **SalesGel rebrand + landing dashboard** (requested brief) | ✅ **Implemented and verified** |
+| 6 | Commerce integrations (Shopify, payments, job infrastructure) | ⏳ Next |
 | 7 | Support forms, portal, SLA, routing | Not started |
 | 8 | Unified inbox | Not started |
 | 9 | Marketing & automation | Not started |
@@ -213,3 +213,36 @@ Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting durin
 
 ### Not yet implemented (later phases)
 - Ticket forms, customer portal, SLA policies and business hours, routing rules, escalation (Phase 7); CSAT surveys and knowledge base (Phase 10).
+
+---
+
+## SalesGel rebrand and landing dashboard (requested brief)
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Brand | SalesGel name and logo (cut from the supplied mockup until the original file is provided), deep navy sidebar, electric blue (#0053ee) primary actions, bright teal (#00c2a8) highlights, light background, white rounded cards | Screenshots desktop / tablet / mobile |
+| Navigation | Persistent dark sidebar: Dashboard, Inbox, Contacts, Leads, Deals, Orders, Tickets, Marketing, Email, Phone & Messaging, Knowledge Base, Automations, Reports & Insights, Settings; secondary tools under a collapsible **More**. Workspace selector, open-ticket count, collapse control, profile + account menu at the bottom, clear active state. Tablet = icon rail, mobile = drawer. Unbuilt modules are marked **Soon** and open honest placeholders | E2E (desktop + 390px) |
+| Leads vs Deals | Same records: **Leads** is the list, **Deals** is the pipeline board (toggle between them); Deals supports a single-stage filter | E2E |
+| Top bar | Page title / breadcrumb, global search, Quick Create (Contact, Lead, Deal, Order, Ticket, Task — each opens its create form), notifications, help, avatar | E2E |
+| Global search | Contacts, leads & deals, orders and tickets, grouped by type, each permission-filtered by its own module; conversations once the Inbox exists | Build + E2E (phase 2 search) |
+| Header & filters | Greeting from the viewer's local clock with their first name; Today / Yesterday / Last 7 days / This month / Last month / Custom; comparison (previous period, same period last year, none); team-member filter for managers; Customize dashboard. Periods are computed in the workspace timezone | Unit (timezone maths incl. DST) + E2E |
+| Performance cards | Sales Revenue (payments received minus refunds in the period, per currency with a currency selector — never summed across currencies), New Leads, Open Deals (now, count + value), Orders (placed in the period), Unresponded Conversations (honest "no channels connected"), Open Tickets (now). Comparison indicators where meaningful; workload cards are labelled "Now". Each card opens its records with matching filters, and the numbers reconcile with those lists | Integration (reconciliation) + E2E |
+| Sales Performance | SVG line chart, Revenue/Orders toggle, hourly/daily/weekly/monthly grouping by range, currency-formatted axis, crosshair tooltip (hover + arrow keys), comparison line, legend, table view, View report. Series colors validated for colour-blind separation and contrast | Integration + E2E |
+| Sales Pipeline | The workspace's configured stages (Lost kept in the full pipeline), count + per-currency value + stage colour; open deals now, Won within the period; stage → Deals filtered to it; Add deal, View pipeline | Integration + E2E |
+| Inbox Preview | Honest empty state with **Connect channel**; nothing implies messages are being received | E2E |
+| My Follow-ups | Overdue first, then today, then upcoming; linked customer/deal links; inline due date, priority and assignee (saving state, success toast, rollback on failure); green check completion; title opens the task popup; To do / Completed filter; Add task; View all tasks | E2E |
+| Recent Orders | Order, customer + source, date, total + currency, separate payment and fulfillment badges; row opens a side panel with expand-to-full-page; Create order, View all orders | E2E (filters preserved after closing) |
+| Support Overview | Open, unassigned, resolved in period; **Overdue** shows "needs SLA targets" (no fabricated SLA numbers until Phase 7); priority ticket list opening the ticket workspace in a side panel; Create ticket, View tickets | E2E |
+| Recent Activity | Lead created, deal stage changed / won / lost, payment recorded, order created/completed/fulfilled, ticket opened/resolved, customer replied, task completed — actor, action, linked record, source, timestamp. Filtered to what the viewer may see (assigned-only users see only their records; no payment events without financial access) | Integration (permission boundaries) |
+| Customization | Show/hide, reorder, half/full width, save personal layout, reset to workspace default; admins can save the workspace default; personal layouts never change anyone else's dashboard | Integration + E2E |
+| Fixes found by testing | Payments dated "today" were stored at midnight UTC and could land on the previous local day (now: local day in the workspace timezone; regression test fails without the fix). Customize checkboxes had ids clashing with widget headings (labels attached to the wrong element) | Integration + E2E |
+
+**Test totals:** 139 unit/integration tests and 41 end-to-end tests, all passing, with lint, typecheck and the production build.
+
+### Not yet live (depends on later phases)
+- Inbox Preview rows, read/unread/responded/ignored states, the conversation side panel and the Unresponded Conversations number need channel connections (Inbox build, Phase 8).
+- Overdue tickets and response deadlines need SLA policies (Phase 7).
+- Store sources other than manual (Shopify, WooCommerce) appear once integrations exist (Phase 6).
+- Logo: replace `public/salesgel-mark.png` with the original artwork when available.

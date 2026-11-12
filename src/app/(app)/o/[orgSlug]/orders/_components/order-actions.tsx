@@ -46,7 +46,10 @@ function useForm<T extends Record<string, string>>(initial: T) {
 }
 
 const Alert = ({ msg }: { msg: string | null }) => (msg ? <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">{msg}</p> : null);
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export function RecordPaymentDialog({ orgSlug, orderId, due, currency }: { orgSlug: string; orderId: string; due: number; currency: string }) {
   const [open, setOpen] = useState(false);

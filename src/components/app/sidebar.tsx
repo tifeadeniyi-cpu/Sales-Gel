@@ -66,7 +66,7 @@ export function Sidebar(props: SidebarProps) {
   const compact = collapsed ? "sr-only" : "max-lg:sr-only";
 
   return (
-    <aside className={cn("sticky top-0 hidden h-screen shrink-0 flex-col bg-navy text-white transition-[width] md:flex", collapsed ? "w-[4.5rem]" : "w-[4.5rem] lg:w-64")}>
+    <aside className={cn("sticky top-0 hidden h-screen shrink-0 flex-col bg-navy text-white transition-[width] md:flex", collapsed ? "w-[4.5rem]" : "w-[4.5rem] lg:w-[17rem]")}>
       <div className="flex h-16 items-center px-4">
         <Link href={`/o/${props.orgSlug}`} aria-label="SalesGel home" className="rounded-md focus-visible:outline-accent">
           <span className={collapsed ? "" : "lg:hidden"}><Logo tone="dark" collapsed /></span>

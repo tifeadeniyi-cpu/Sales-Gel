@@ -126,6 +126,21 @@ describe("dashboard metrics", () => {
   });
 });
 
+describe("payment dates", () => {
+  it("a date-only payment date counts on that local day, not the UTC day", async () => {
+    const owner = await createOrgWithOwner("DateCo");
+    // UTC−11: midnight UTC of a local date falls on the previous local day.
+    const ctx = { ...owner.ctx, timezone: "Pacific/Pago_Pago" };
+    const o = await createOrder(ctx, { lines: [{ name: "x", unitPrice: "10", quantity: 1 }] });
+    const d = new Intl.DateTimeFormat("en-CA", { timeZone: ctx.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    await recordPayment(ctx, o.id, { amount: "10", method: "cash", receivedAt: d });
+    const today = await getDashboardCards(ctx, { period: resolvePeriod({ range: "today" }, ctx.timezone) });
+    expect(today.revenue!.value).toBe(1000);
+    const yesterday = await getDashboardCards(ctx, { period: resolvePeriod({ range: "yesterday" }, ctx.timezone) });
+    expect(yesterday.revenue!.value).toBe(0);
+  });
+});
+
 describe("dashboard layouts", () => {
   it("personal layouts are private; admins set the workspace default; reset falls back to it", async () => {
     const { ctx } = await createOrgWithOwner("LayoutCo");

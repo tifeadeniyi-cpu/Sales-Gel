@@ -36,7 +36,7 @@ test("unauthenticated visitors are sent to sign-in", async ({ page }) => {
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fo%2Fanything/);
 });
 
-test("owner signs up, creates a workspace and lands in the Command Center", async ({ page }) => {
+test("owner signs up, creates a workspace and lands on the dashboard", async ({ page }) => {
   await signUp(page, owner);
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByLabel("Business name").fill(orgName);
@@ -44,11 +44,15 @@ test("owner signs up, creates a workspace and lands in the Command Center", asyn
   await page.getByLabel("Default currency").selectOption("NGN");
   await page.getByRole("button", { name: "Create workspace" }).click();
 
-  await expect(page.getByRole("heading", { name: "Command Center" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening)|Welcome back/ })).toBeVisible();
   orgSlug = new URL(page.url()).pathname.split("/")[2];
   expect(orgSlug).toContain("sasun-market");
-  await expect(page.getByText("You're signed in as Owner")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Team & Permissions" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account menu" }).filter({ hasText: "Owner" })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await nav.getByRole("button", { name: "More" }).click();
+  await expect(nav.getByRole("link", { name: "Team & Permissions" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Recent Activity" })).toContainText("No activity yet.");
+  await page.goto(`/o/${orgSlug}/settings/audit`);
   await expect(page.getByText("created the workspace")).toBeVisible();
 });
 
@@ -104,7 +108,7 @@ test("invitee signs up through the link, joins with limited access", async ({ pa
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(new RegExp(path));
   await page.getByRole("button", { name: "Accept invitation" }).click();
-  await expect(page.getByText("You're signed in as Sales Representative")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account menu" }).filter({ hasText: "Sales Representative" })).toBeVisible();
 
   // Limited permissions: no invite button, read-only settings, audit log forbidden, admin nav hidden.
   await page.goto(`/o/${orgSlug}/team`);
@@ -128,7 +132,7 @@ test("rep creates their own workspace; the owner cannot access it (tenant isolat
   await page.goto("/onboarding");
   await page.getByLabel("Business name").fill(`Rep Side Shop ${run}`);
   await page.getByRole("button", { name: "Create workspace" }).click();
-  await expect(page.getByRole("heading", { name: "Command Center" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening)|Welcome back/ })).toBeVisible();
   const repSlug = new URL(page.url()).pathname.split("/")[2];
 
   // Org switcher shows both orgs for the rep.
@@ -197,9 +201,10 @@ test("modules from later phases are clearly marked and show no fake data", async
 test("mobile layout exposes navigation through the menu", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page, owner);
-  await expect(page.getByRole("heading", { name: "Command Center" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Good (morning|afternoon|evening)|Welcome back/ })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeHidden();
   await page.getByRole("button", { name: "Open navigation" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "More" }).click();
   await page.getByRole("link", { name: "Team & Permissions" }).click();
   await expect(page.getByRole("heading", { name: "Team & Permissions" })).toBeVisible();
 });

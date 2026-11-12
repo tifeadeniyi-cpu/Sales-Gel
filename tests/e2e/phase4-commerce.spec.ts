@@ -125,7 +125,7 @@ test("Scenario 1: inquiry → customer → lead won → order → payments → f
   await expect(page.getByRole("button", { name: /^ORD-\d+$/ })).toBeVisible();
 });
 
-test("refund updates status and lifetime value; Command Center shows real numbers", async ({ page }) => {
+test("refund updates status and lifetime value; dashboard shows real numbers", async ({ page }) => {
   await signIn(page, owner);
   await page.goto(orderUrl);
   await page.getByRole("button", { name: "Issue refund" }).click();
@@ -146,8 +146,7 @@ test("refund updates status and lifetime value; Command Center shows real number
   await expect(page.getByText("No orders in this view.")).toBeVisible();
 
   await page.goto(`/o/${slug}`);
-  await expect(page.getByText("Revenue (30 days)")).toBeVisible();
-  await expect(page.getByText("$110.50")).toBeVisible();
+  await expect(page.getByTestId("card-revenue-value")).toHaveText("$110.50");
 });
 
 test("a support agent sees orders without money and can't refund", async ({ page, browser }) => {
@@ -171,7 +170,7 @@ test("a support agent sees orders without money and can't refund", async ({ page
   await p2.getByRole("button", { name: "Create account" }).click();
   await expect(p2).toHaveURL(new RegExp(path));
   await p2.getByRole("button", { name: "Accept invitation" }).click();
-  await expect(p2.getByText("You're signed in as Support Agent")).toBeVisible();
+  await expect(p2.getByRole("button", { name: "Account menu" }).filter({ hasText: "Support Agent" })).toBeVisible();
   await p2.goto(orderUrl);
   await expect(p2.getByRole("heading", { name: /^ORD-\d+$/ })).toBeVisible();
   await expect(p2.getByTestId("order-total")).toHaveCount(0);

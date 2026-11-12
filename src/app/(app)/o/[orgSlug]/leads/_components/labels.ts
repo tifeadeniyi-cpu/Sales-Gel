@@ -11,5 +11,5 @@ export const LEAD_STATUS: Record<string, { label: string; tone: "info" | "succes
   lost: { label: "Lost", tone: "danger" },
 };
 export const STAGE_BAR: Record<string, string> = {
-  teal: "bg-primary", blue: "bg-info", gold: "bg-highlight", purple: "bg-purple-500", gray: "bg-inactive", green: "bg-success", red: "bg-danger",
+  teal: "bg-teal-ink", blue: "bg-primary", gold: "bg-highlight", purple: "bg-purple-500", gray: "bg-inactive", green: "bg-success", red: "bg-danger",
 };
