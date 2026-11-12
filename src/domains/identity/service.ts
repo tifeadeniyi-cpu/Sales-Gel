@@ -426,6 +426,9 @@ export async function listRoles(ctx: OrgContext) {
       .from(memberships)
       .where(eq(memberships.organizationId, ctx.orgId))
       .groupBy(memberships.roleId);
+    const systemOrder = Object.keys(SYSTEM_ROLES);
+    const rank = (r: (typeof roleRows)[number]) => (r.isSystem ? systemOrder.indexOf(r.key) : systemOrder.length);
+    roleRows.sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
     return roleRows.map((r) => ({
       ...r,
       permissions: perms.filter((p) => p.roleId === r.id).map((p) => p.permissionKey as Permission),
