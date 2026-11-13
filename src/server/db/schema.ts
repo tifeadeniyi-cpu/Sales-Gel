@@ -8,3 +8,4 @@ export * from "@/domains/tasks/schema";
 export * from "@/domains/commerce/schema";
 export * from "@/domains/support/schema";
 export * from "@/domains/reporting/schema";
+export * from "@/domains/integrations/schema";

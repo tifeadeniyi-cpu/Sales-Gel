@@ -1,0 +1,34 @@
+# SalesGel's Shopify app (Dev Dashboard). Deploy config with: shopify app deploy
+# client_id comes from the Dev Dashboard; the secret lives only in the server env (SHOPIFY_CLIENT_SECRET).
+name = "SalesGel"
+client_id = "REPLACE_WITH_SHOPIFY_CLIENT_ID"
+application_url = "https://sales-gel-myllenn.vercel.app"
+embedded = false
+
+[access_scopes]
+scopes = "read_orders,read_products,read_customers"
+
+[auth]
+redirect_urls = ["https://sales-gel-myllenn.vercel.app/api/integrations/shopify/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  topics = [
+    "app/uninstalled",
+    "orders/create",
+    "orders/updated",
+    "orders/cancelled",
+    "refunds/create",
+    "customers/create",
+    "customers/update",
+    "products/create",
+    "products/update",
+    "products/delete",
+  ]
+  uri = "https://sales-gel-myllenn.vercel.app/api/webhooks/shopify"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://sales-gel-myllenn.vercel.app/api/webhooks/shopify"

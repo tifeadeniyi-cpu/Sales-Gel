@@ -92,6 +92,34 @@
       "when": 1794524551912,
       "tag": "0012_dashboard_layouts_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794528909602,
+      "tag": "0013_integrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794528910518,
+      "tag": "0014_integrations_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794531750053,
+      "tag": "0015_order_external_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794540000000,
+      "tag": "0016_fix_signal_work",
+      "breakpoints": true
     }
   ]
 }

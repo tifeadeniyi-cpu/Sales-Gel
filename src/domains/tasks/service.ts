@@ -14,6 +14,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/server/errors"
 import { parseInput } from "@/server/validate";
 import { newId } from "@/lib/ids";
 import { taskComments, taskRelations, tasks } from "./schema";
+import { scheduleTaskReminders } from "./reminders";
 
 export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 export const RECURRENCES = ["none", "daily", "weekly", "monthly"] as const;
@@ -119,6 +120,7 @@ export async function createTask(ctx: OrgContext, input: TaskInput) {
     await audit(tx, ctx, { action: "task.created", entityType: "task", entityId: id, metadata: { title: data.title, assignee: assignee?.id ?? null } });
     await auditRelated(tx, ctx, id, data.title, "task_created", rels);
     await emit(tx, ctx.orgId, "task.created", { taskId: id });
+    await scheduleTaskReminders(tx, ctx.orgId, { id, dueAt: data.dueAt ?? null, reminderAt: data.reminderAt ?? null });
     await notifyAssignee(tx, ctx, id, data.title, assignee);
     return { id };
   });
@@ -148,6 +150,7 @@ export async function updateTask(ctx: OrgContext, id: string, patchInput: Record
     if (patch.status && before.status === "done") throw new ValidationError("Reopen the task first.");
     const [after] = await tx.update(tasks).set(patch).where(eq(tasks.id, id)).returning();
     await audit(tx, ctx, { action: "task.updated", entityType: "task", entityId: id, changes: diff(before, patch) });
+    if ("dueAt" in patch || "reminderAt" in patch) await scheduleTaskReminders(tx, ctx.orgId, { id, dueAt: after.dueAt, reminderAt: after.reminderAt });
     if (assignee && assignee.id !== before.assigneeMembershipId) {
       await notifyAssignee(tx, ctx, id, after.title, assignee);
       await emit(tx, ctx.orgId, "task.assigned", { taskId: id, assigneeMembershipId: assignee.id });
@@ -204,6 +207,8 @@ export async function setTaskDone(ctx: OrgContext, id: string, done: boolean) {
           recurredFromId: id,
         });
         if (rels.length) await tx.insert(taskRelations).values(rels.map((r) => ({ ...r, taskId: nextId! })));
+        const nextDueAt = nextDue(base, t.recurrence);
+        await scheduleTaskReminders(tx, ctx.orgId, { id: nextId, dueAt: nextDueAt, reminderAt: t.reminderAt && t.dueAt ? new Date(nextDueAt.getTime() - (t.dueAt.getTime() - t.reminderAt.getTime())) : null });
         await audit(tx, ctx, { action: "task.created", entityType: "task", entityId: nextId, metadata: { title: t.title, recurredFrom: id } });
       }
     }

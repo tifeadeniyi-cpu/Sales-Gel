@@ -17,7 +17,8 @@ export function diff<T extends Record<string, unknown>>(prev: Partial<T>, next: 
   return changes;
 }
 
-type AuditActor = Pick<OrgContext, "orgId" | "userId"> & Partial<Pick<OrgContext, "ip" | "userAgent">>;
+/** `userId: null` records the system (webhooks, scheduled jobs) as the actor. */
+type AuditActor = { orgId: string; userId: string | null } & Partial<Pick<OrgContext, "ip" | "userAgent">>;
 
 /** Writes an audit row inside the caller's transaction, so it commits or rolls back with the change. */
 export async function audit(

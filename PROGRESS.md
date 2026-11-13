@@ -246,3 +246,46 @@ Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting durin
 - Overdue tickets and response deadlines need SLA policies (Phase 7).
 - Store sources other than manual (Shopify, WooCommerce) appear once integrations exist (Phase 6).
 - Logo: replace `public/salesgel-mark.png` with the original artwork when available.
+
+---
+
+## Phase 6 completion report: Commerce integrations (Stripe, Shopify) and background jobs
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | integration_connections (credentials AES-256-GCM encrypted), webhook_events (unique per connection + provider event id), external_record_mappings, payment_links, jobs; all under forced RLS. integration_routes and org_work_signals hold no tenant data (shop/connection → workspace id; "work due at") so webhooks and the worker can find the right workspace before reading anything else | Migrations 0013–0016; integration (cross-tenant, route columns) |
+| Job infrastructure | Queue with idempotency keys, per-workspace claiming (`FOR UPDATE SKIP LOCKED`), exponential backoff (30 s → 1 h), max attempts, outbox relay. Runs right after requests and webhooks (`after()`), plus a daily Vercel Cron safety net (`/api/cron/worker`, `CRON_SECRET`) | Integration (retry/backoff/fail, dedupe, isolation) |
+| Task reminders | Reminder and overdue notifications to the assignee, rescheduled when the task's dates change, never sent twice | Integration |
+| Stripe | Workspace connects its own Stripe account with a **restricted key** (Checkout Sessions + Webhook Endpoints write). SalesGel creates the webhook endpoint itself, so no signing secret is pasted around. Test-mode vs live clearly shown; a secret key works but triggers a warning | Integration (stubbed Stripe HTTP) + E2E (validation) |
+| Payment links | "Send payment link" on an order creates a Stripe Checkout page for the balance due (reused while still open), copies the link and lists link status. **Orders are marked paid only from Stripe's signed webhook**, never from the return page. Refunds made in Stripe are recorded on the order. Duplicate deliveries and repeat events for the same payment don't double-count. Disconnecting cancels open links. Owner/creator notified on payment | Integration + E2E |
+| Webhook security | Stripe: signature checked with the connection's own secret (5-minute tolerance). Shopify: HMAC of the raw body with the app secret, deduped by webhook id, routed by shop domain. Events stored once and processed in the background; status visible on the Integrations page | Unit + integration |
+| Shopify | Connect by store domain through SalesGel's Shopify app (OAuth, read-only orders/products/customers, expiring offline tokens with refresh). State nonce in a signed, short-lived cookie bound to the user and workspace; callback HMAC and shop checked; missing scopes refused | Unit + integration |
+| Shopify import | Products and variants (SKU clashes left blank, removed variants archived), customers (matched to existing ones by email/phone, otherwise created), orders from the last 90 days with reconciled totals (extra charges such as tips/duties folded into shipping), Shopify payments and refunds as provider payments, cancellation and fulfillment status. Webhooks re-read current state from the Admin GraphQL API so out-of-order deliveries can't overwrite newer data. Paged backfill continues across jobs; a daily incremental sync catches missed webhooks; "Sync now" button | Integration (stubbed GraphQL) |
+| Privacy webhooks | customers/data_request (admins notified), customers/redact (personal data removed, anonymous order history kept), shop/redact — honoured even after the store is disconnected | Integration |
+| Integrations page | Apps & Integrations (owners/admins): connect/disconnect Stripe and Shopify, status, problems, last import, recent webhook events and jobs. Says plainly when the server isn't configured | E2E |
+| Orders | Shopify orders show "Shopify #1001" in lists and detail and are searchable by that name | Integration |
+| Public return page | `/pay/complete` tells the customer Stripe is confirming the payment; it changes nothing | E2E |
+
+**Bug caught by these tests:** the work-signal trigger from migration 0014 referenced a jobs-only column when an outbox row was written, which would have broken every audited write in production. Migration 0016 fixes it. It never reached production because 0014 hadn't been deployed yet.
+
+**Test totals:** 164 unit/integration tests and 44 end-to-end tests, all passing, along with lint, typecheck and the production build.
+
+### Implemented but not fully tested
+- **Real Stripe and Shopify traffic**: this environment can't reach either service, so every provider call is tested against stubbed HTTP responses built from the documented formats. A live test-mode run is the first thing to do once credentials exist.
+- Shopify token refresh and throttling backoff are covered only by reading the code paths, not by a test.
+
+### Blocked by credentials or external setup
+- **Shopify app credentials.** SalesGel needs its own app in the Shopify Dev Dashboard: set `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET` in Vercel, put the client id into `shopify.app.toml`, and run `shopify app deploy` to register the redirect URL and webhooks. Until then the page says Shopify isn't configured.
+- **Stripe.** Each workspace pastes its own restricted key; nothing to configure server-side.
+- `INTEGRATIONS_ENCRYPTION_KEY` and `CRON_SECRET` are set in Vercel as sensitive variables.
+
+### Known limitations
+- Vercel Hobby allows a daily cron only; background work mostly runs right after requests and webhooks. A busy workspace with nobody online waits for the next request or the daily run.
+- Shopify import is read-only (SalesGel doesn't write back to Shopify); orders older than 90 days aren't imported.
+- Order items on an imported order are refreshed from Shopify only until someone records a shipment in SalesGel.
+- A data request from Shopify notifies admins; exporting the customer's data is a manual step.
+
+### Not yet implemented (later phases)
+- WooCommerce and other store platforms; Inbox and channel connections (Phase 8); automations reacting to order events (Phase 9).

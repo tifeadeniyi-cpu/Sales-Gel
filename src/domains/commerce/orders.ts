@@ -421,6 +421,7 @@ const listSelect = {
   id: orders.id,
   number: orders.number,
   externalId: orders.externalId,
+  externalName: orders.externalName,
   source: orders.source,
   currency: orders.currency,
   totalAmount: orders.totalAmount,
@@ -454,7 +455,7 @@ export async function listOrders(ctx: OrgContext, filters: OrderFilters & { lead
     if (f.q) {
       const like = `%${f.q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       const num = f.q.match(/^(?:ord-)?(\d+)$/i);
-      conds.push(or(ilike(customers.displayName, like), ilike(orders.externalId, like), num ? eq(orders.number, Number(num[1])) : undefined));
+      conds.push(or(ilike(customers.displayName, like), ilike(orders.externalId, like), ilike(orders.externalName, like), num ? eq(orders.number, Number(num[1])) : undefined));
     }
     const where = and(...conds);
     const base = tx
@@ -593,4 +594,53 @@ export async function getCommerceStats(ctx: OrgContext, days = 30) {
       topProducts,
     };
   });
+}
+
+/* ───────────── Provider-confirmed money (webhooks only) ───────────── */
+
+/**
+ * Records a payment confirmed by a provider webhook (never by a client redirect).
+ * Idempotent on (provider, providerPaymentId). Real money is recorded even if it
+ * overpays the balance; the audit entry flags it.
+ */
+export async function recordProviderPayment(
+  tx: Tx,
+  orgId: string,
+  p: { orderId: string; provider: string; providerPaymentId: string; amount: number; currency: string; method: "card" | "payment_link" | "other" | "bank_transfer" | "mobile_money" | "cash"; reference?: string | null; receivedAt?: Date },
+) {
+  const [dup] = await tx.select({ id: payments.id }).from(payments).where(and(eq(payments.organizationId, orgId), eq(payments.provider, p.provider), eq(payments.providerPaymentId, p.providerPaymentId)));
+  if (dup) return { id: dup.id, duplicate: true as const };
+  const [o] = await tx.select().from(orders).where(and(eq(orders.organizationId, orgId), eq(orders.id, p.orderId))).for("update");
+  if (!o) throw new NotFoundError("Order not found for provider payment.");
+  if (o.currency !== p.currency.toUpperCase()) throw new ValidationError(`Provider payment currency ${p.currency} doesn't match order currency ${o.currency}.`);
+  const id = newId();
+  await tx.insert(payments).values({ id, organizationId: orgId, orderId: o.id, provider: p.provider, providerPaymentId: p.providerPaymentId, method: p.method, amount: p.amount, currency: o.currency, status: "succeeded", reference: p.reference ?? null, receivedAt: p.receivedAt ?? new Date(), recordedByUserId: null });
+  const r = await recompute(tx, o.id);
+  const due = o.totalAmount - (o.paidAmount - o.refundedAmount);
+  const actor = { orgId, userId: null };
+  await audit(tx, actor, { action: "payment.recorded", entityType: "order", entityId: o.id, metadata: { paymentId: id, amount: p.amount, currency: o.currency, provider: p.provider, providerPaymentId: p.providerPaymentId, overpaid: p.amount > due ? p.amount - due : undefined } });
+  if (o.customerId) await audit(tx, actor, { action: "customer.payment_recorded", entityType: "customer", entityId: o.customerId, metadata: { orderId: o.id, preview: `ORD-${o.number} · ${formatMoney(p.amount, o.currency)} via ${p.provider}` } });
+  await emit(tx, orgId, "payment.recorded", { orderId: o.id, paymentId: id, amount: p.amount, currency: o.currency, provider: p.provider, paymentStatus: r.status });
+  return { id, duplicate: false as const, order: o, ...r };
+}
+
+/** Records a refund confirmed by the provider, matched to the original provider payment. */
+export async function recordProviderRefund(
+  tx: Tx,
+  orgId: string,
+  p: { provider: string; providerRefundId: string; providerPaymentId: string; amount: number; currency: string; reason?: string | null },
+) {
+  const [dup] = await tx.select({ id: refunds.id }).from(refunds).where(and(eq(refunds.organizationId, orgId), eq(refunds.provider, p.provider), eq(refunds.providerRefundId, p.providerRefundId)));
+  if (dup) return { id: dup.id, duplicate: true as const };
+  const [pay] = await tx.select().from(payments).where(and(eq(payments.organizationId, orgId), eq(payments.provider, p.provider), eq(payments.providerPaymentId, p.providerPaymentId)));
+  if (!pay) return { id: null, duplicate: false as const, skipped: "no matching payment" };
+  const [o] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).for("update");
+  const room = o.paidAmount - o.refundedAmount;
+  if (p.amount > room) throw new ValidationError(`Provider refund ${p.amount} exceeds the refundable ${room} on ORD-${o.number}.`);
+  const id = newId();
+  await tx.insert(refunds).values({ id, organizationId: orgId, orderId: o.id, paymentId: pay.id, provider: p.provider, providerRefundId: p.providerRefundId, amount: p.amount, currency: o.currency, reason: p.reason || `Refunded in ${p.provider}`, method: pay.method, createdByUserId: null });
+  const r = await recompute(tx, o.id);
+  await audit(tx, { orgId, userId: null }, { action: "refund.issued", entityType: "order", entityId: o.id, metadata: { refundId: id, amount: p.amount, currency: o.currency, provider: p.provider, reason: p.reason ?? undefined } });
+  await emit(tx, orgId, "refund.issued", { orderId: o.id, refundId: id, amount: p.amount, currency: o.currency, provider: p.provider });
+  return { id, duplicate: false as const, ...r };
 }

@@ -29,6 +29,7 @@ export default defineConfig({
     url: `${baseURL}/sign-in`,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { ...env, BETTER_AUTH_URL: baseURL, NEXT_PUBLIC_APP_URL: baseURL, NODE_ENV: "production" },
+    // Fixed test-only key so the Integrations page renders its connect forms; never used outside E2E.
+    env: { INTEGRATIONS_ENCRYPTION_KEY: "dGVzdC1vbmx5LWUyZS1rZXktMzItYnl0ZXMtbG9uZyE=", ...env, BETTER_AUTH_URL: baseURL, NEXT_PUBLIC_APP_URL: baseURL, NODE_ENV: "production" },
   },
 });

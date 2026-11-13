@@ -29,6 +29,6 @@ export const VIEW_LABELS: Record<string, string> = {
 };
 export const DELIVERY_LABELS: Record<string, string> = { shipping: "Shipping", local_delivery: "Local delivery", pickup: "Pickup", digital: "Digital" };
 export const SOURCE_LABELS: Record<string, string> = {
-  manual: "Manual", website: "Website", instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp", tiktok: "TikTok", marketplace: "Marketplace", phone: "Phone", in_person: "In person",
+  manual: "Manual", website: "Website", instagram: "Instagram", facebook: "Facebook", whatsapp: "WhatsApp", tiktok: "TikTok", marketplace: "Marketplace", phone: "Phone", in_person: "In person", shopify: "Shopify",
 };
 export const orderNo = (n: number) => `ORD-${n}`;

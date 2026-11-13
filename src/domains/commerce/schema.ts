@@ -94,6 +94,8 @@ export const orders = pgTable(
     organizationId: organizationId(),
     number: bigint("number", { mode: "number" }).notNull(),
     externalId: text("external_id"),
+    /** The order name shown in the source store, e.g. Shopify "#1001". */
+    externalName: text("external_name"),
     storeId: uuid("store_id").notNull(),
     customerId: uuid("customer_id"),
     leadId: uuid("lead_id"),

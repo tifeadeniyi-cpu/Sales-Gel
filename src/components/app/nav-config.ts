@@ -13,7 +13,7 @@ export interface NavItem {
   description: string;
 }
 
-export const CURRENT_PHASE = 5;
+export const CURRENT_PHASE = 6;
 
 /** Primary navigation follows the SalesGel brief; secondary tools live under "More". */
 export const NAV_GROUPS: { label: string; collapsible?: boolean; items: NavItem[] }[] = [

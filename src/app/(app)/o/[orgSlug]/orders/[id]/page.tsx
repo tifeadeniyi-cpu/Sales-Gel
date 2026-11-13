@@ -9,7 +9,9 @@ import { CATEGORY_TONE, PRIORITY } from "../../support/tickets/_components/label
 import { loadTicketLookups } from "../../support/tickets/_components/load";
 import { NewTicketButton } from "../../support/tickets/_components/new-ticket-dialog";
 import { requireOrgContext } from "@/server/authz/request";
-import { orderNo } from "../_components/labels";
+import { listPaymentLinks, stripeReady } from "@/domains/integrations/stripe";
+import { PaymentLinks } from "../_components/payment-links";
+import { orderNo, SOURCE_LABELS } from "../_components/labels";
 import { OrderBadges, OrderFulfillmentCard, OrderItemsCard, OrderMoneyCard, OrderSideCard, OrderTimeline, OrderToolbar } from "../_components/order-view";
 
 export default async function OrderPage({ params }: { params: Promise<{ orgSlug: string; id: string }> }) {
@@ -19,6 +21,8 @@ export default async function OrderPage({ params }: { params: Promise<{ orgSlug:
   const o = /^[0-9a-f-]{36}$/i.test(id) ? await getOrder(ctx, id) : null;
   if (!o) notFound();
   const canTickets = canAny(ctx, "tickets.read", "tickets.read_assigned");
+  const showLinks = o.financialsVisible && can(ctx, "orders.financials");
+  const [links, ready] = showLinks ? await Promise.all([listPaymentLinks(ctx, o.id), stripeReady(ctx)]) : [[], false];
   const [timeline, tickets, ticketLookups] = await Promise.all([
     getOrderTimeline(ctx, o.id),
     canTickets ? listTickets(ctx, { view: "all", order: o.id }) : Promise.resolve(null),
@@ -29,7 +33,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orgSlug:
       <Link href={`/o/${orgSlug}/orders`} className="text-sm text-primary hover:underline">← Orders</Link>
       <div className="mb-6 mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{orderNo(o.number)}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{orderNo(o.number)}{o.externalName && <span className="ml-2 text-base font-normal text-muted-foreground">{SOURCE_LABELS[o.source] ?? o.source} {o.externalName}</span>}</h1>
           <div className="mt-1"><OrderBadges o={o} /></div>
         </div>
         <OrderToolbar ctx={ctx} orgSlug={orgSlug} o={o} />
@@ -38,6 +42,15 @@ export default async function OrderPage({ params }: { params: Promise<{ orgSlug:
         <div className="space-y-6 lg:col-span-2">
           <OrderItemsCard o={o} />
           <OrderMoneyCard ctx={ctx} orgSlug={orgSlug} o={o} />
+          {showLinks && o.orderStatus !== "cancelled" && (
+            <Card>
+              <CardHeader><CardTitle>Payment links</CardTitle></CardHeader>
+              <CardContent>
+                <PaymentLinks orgSlug={orgSlug} orderId={o.id} ready={ready} canCreate={can(ctx, "orders.write")} due={(o.totalAmount ?? 0) - ((o.paidAmount ?? 0) - (o.refundedAmount ?? 0))} currency={o.currency}
+                  links={links.map((l) => ({ id: l.id, url: l.url, amount: l.amount, currency: l.currency, status: l.status, createdAt: l.createdAt.toISOString(), expiresAt: l.expiresAt?.toISOString() ?? null }))} />
+              </CardContent>
+            </Card>
+          )}
           <OrderFulfillmentCard ctx={ctx} orgSlug={orgSlug} o={o} />
         </div>
         <div className="space-y-6">

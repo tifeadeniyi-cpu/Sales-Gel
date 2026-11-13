@@ -52,3 +52,8 @@ export async function searchVariantsAction(orgSlug: string, q: string) {
   const ctx = await requireOrgContext(orgSlug);
   return runAction(() => searchVariants(ctx, q));
 }
+
+export async function createPaymentLinkAction(orgSlug: string, orderId: string) {
+  const { createPaymentLink } = await import("@/domains/integrations/stripe");
+  return act(orgSlug, (ctx) => createPaymentLink(ctx, orderId));
+}

@@ -8,7 +8,7 @@ import { FULFILLMENT_STATUS, ORDER_STATUS, PAYMENT_STATUS, SOURCE_LABELS } from 
 
 export interface OrderRowView {
   id: string; number: number; source: string; currency: string; totalAmount: number | null; paymentStatus: string; orderStatus: string;
-  fulfillmentStatus: string; placedAt: Date; customerName: string | null; assignedName: string | null; itemCount: number;
+  fulfillmentStatus: string; placedAt: Date; customerName: string | null; assignedName: string | null; itemCount: number; externalName?: string | null;
 }
 
 export function OrderTable({ rows, linkBase }: { rows: OrderRowView[]; linkBase?: string }) {
@@ -26,7 +26,7 @@ export function OrderTable({ rows, linkBase }: { rows: OrderRowView[]; linkBase?
             <tr key={r.id} className="cursor-pointer hover:bg-muted/30" onClick={() => open(r.id)}>
               <td className="px-3 py-2.5">
                 <button type="button" className="font-medium hover:underline">ORD-{r.number}</button>
-                <div className="text-xs text-muted-foreground">{SOURCE_LABELS[r.source] ?? r.source}{r.orderStatus !== "open" && <> · <Badge tone={ORDER_STATUS[r.orderStatus].tone}>{ORDER_STATUS[r.orderStatus].label}</Badge></>}</div>
+                <div className="text-xs text-muted-foreground">{SOURCE_LABELS[r.source] ?? r.source}{r.externalName && <> {r.externalName}</>}{r.orderStatus !== "open" && <> · <Badge tone={ORDER_STATUS[r.orderStatus].tone}>{ORDER_STATUS[r.orderStatus].label}</Badge></>}</div>
               </td>
               <td className="px-3 py-2.5">{r.customerName ?? <span className="text-muted-foreground">No customer</span>}</td>
               <td className="px-3 py-2.5">{r.itemCount}</td>
