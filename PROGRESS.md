@@ -1,6 +1,6 @@
 # Progress & Phase Status
 
-_Last updated: 2026-11-12 (Phase 7)_
+_Last updated: 2026-11-12 (Phase 8)_
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -13,11 +13,11 @@ _Last updated: 2026-11-12 (Phase 7)_
 | — | **SalesGel rebrand + landing dashboard** (requested brief) | ✅ **Implemented and verified** |
 | **6** | **Commerce integrations (Shopify, Stripe payment links, job infrastructure)** | ✅ **Implemented and verified** (live provider test pending credentials) |
 | **7** | **Support forms, portal, SLA, routing** | ✅ **Implemented and verified** |
-| 8 | Unified inbox | ⏳ Next |
+| **8** | **Unified inbox** | ✅ **Implemented and verified** (web chat live; email/Meta pending your provider accounts) |
 | 9 | Marketing & automation | Not started |
 | 10 | Analytics, knowledge base | Not started |
 | 11 | Billing & production hardening | Not started |
-| 8b | Phone & Calls (Twilio): see `docs/06-phone-system-plan.md` | Planned: confirmed to run right after Phase 8 |
+| 8b | Phone & Calls (Twilio): see `docs/06-phone-system-plan.md` | ⏳ Next |
 
 ---
 
@@ -321,3 +321,40 @@ Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting durin
 
 ### Not yet implemented (later phases)
 - Attachments on portal submissions, conditional form fields, CSAT surveys and knowledge-base suggestions in the portal (Phase 10); portal sign-in for customers to see all their tickets.
+
+---
+
+## Phase 8 completion report: Unified inbox
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | channel_connections (credentials AES-GCM encrypted, wiped on disconnect), conversations, conversation_messages (append-only; only delivery fields updatable), conversation_attachments, conversation_reads, saved_replies. Forced RLS, composite tenant FKs. Webhook routing via the secret-free integration_routes table | Migrations 0019–0020; integration (isolation, edits refused by the database) |
+| Inbox | Views (Mine, Unassigned, All open, Pending, Closed, All), channel filter, search, unread markers and sidebar badge, auto-refresh. Thread with customer messages, replies with delivery status (Sending/Sent/Delivered/Read/Failed + Retry), internal notes, attachments. Assign (notifies), Pending/Close/Reopen, link or create a customer (the channel identity is saved so future messages match), create a support ticket with the transcript. Replying claims an unassigned conversation | Integration + E2E |
+| Customer matching | Inbound contacts are linked to existing customers by email, phone (E.164) or saved channel identity; never auto-created | Integration |
+| Web chat (live) | Self-contained channel: one-line embed script, launcher button, chat window in a sandboxed iframe (only `/chat/*` may be framed; everything else sends `X-Frame-Options: DENY` + `frame-ancestors 'none'`). Customisable title, greeting, colour, email requirement. Visitor sessions are hashed secrets; visitors see team replies but never notes; rate-limited per IP | Integration + E2E (full visitor ↔ agent round trip in a browser, no stubs) |
+| Email (Postmark) | Workspace connects its own Postmark server: token validated, SalesGel sets the inbound webhook itself (Basic Auth with a generated password). Inbound uses reply-only text, keeps attachments, ignores mail from the sending address. Replies go out from the workspace's address with In-Reply-To/References and a per-conversation reply address so answers thread back even if the subject changes | Integration (stubbed Postmark HTTP) |
+| WhatsApp Business (Cloud API) | Workspace's own Meta app: token + Phone number ID checked with Graph API v26.0; webhook verify-token handshake; `X-Hub-Signature-256` checked with the app secret; text, media (downloaded), buttons and locations; delivery/read receipts (forward-only); events for other numbers ignored. Free-form replies blocked outside the 24-hour window with a clear explanation | Integration (stubbed Graph HTTP, signed payloads) |
+| Messenger / Instagram | Page token (graph.facebook.com) and Instagram Login token (graph.instagram.com), same signature checks; profile names fetched; echoes ignored; delivery and read watermarks; 24-hour window | Integration |
+| Failure handling | Provider refusals are stored on the message with the provider's reason and can be retried; credential rejections flag the channel "Needs attention" and clear on the next successful send | Integration |
+| Settings | Inbox settings: per-channel setup guides, callback URL + verify token to paste into Meta, "Waiting for webhook" until Meta verifies, embed snippet, disconnect; saved replies | E2E |
+| Dashboard | Inbox Preview shows real open conversations with unread markers (or the honest "No channels connected" state) | E2E |
+
+**Test totals:** 202 unit/integration tests and 53 end-to-end tests, all passing, along with lint, typecheck and the production build.
+
+### Implemented but not fully tested
+- **Email, WhatsApp, Messenger and Instagram against the real providers**: every call is tested against the documented request/response formats with stubbed HTTP; this environment can't reach the providers. A live run needs your accounts (below).
+- Outbound attachments aren't supported yet (inbound attachments are stored).
+
+### Blocked by your provider accounts
+- **Email:** a Postmark account with a server, an inbound stream, and a verified sender signature/domain (SPF/DKIM). Gmail/Outlook OAuth would need Google verification / Microsoft publisher verification and isn't built.
+- **WhatsApp:** a Meta app with WhatsApp, a WhatsApp Business Account and phone number, a permanent system-user token; business verification for production volumes. **Message templates** (needed to message customers outside 24 hours) aren't built yet.
+- **Messenger/Instagram:** a Meta app connected to your Page / Instagram professional account; **Meta App Review** for messaging permissions before customers outside your app's roles can be messaged.
+
+### Known limitations
+- New messages appear in the inbox within ~10 seconds (polling) rather than instantly; the chat widget polls every 4 seconds.
+- Re-closing conversations: a new message after "Closed" starts a new conversation (email replies to our reply address reopen the original).
+
+### Next
+- **Phase 8b — Phone & Calls (Twilio)**, then Phase 9 (marketing & automation).

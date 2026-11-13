@@ -5,6 +5,7 @@ import { visibleNav } from "@/components/app/nav-config";
 import { listMyOrganizations } from "@/domains/identity/service";
 import { unreadNotificationCount } from "@/domains/platform/notifications";
 import { countOpenTickets } from "@/domains/support/service";
+import { inboxCounts } from "@/domains/inbox/service";
 import { requireUser } from "@/server/auth/session";
 import { requireOrgContext } from "@/server/authz/request";
 import { can } from "@/server/authz/guards";
@@ -14,11 +15,11 @@ export default async function OrgLayout({ children, params }: { children: React.
   const { orgSlug } = await params;
   const ctx = await requireOrgContext(orgSlug);
   const user = await requireUser();
-  const [orgs, unread, openTickets] = await Promise.all([listMyOrganizations(user.id), unreadNotificationCount(ctx), countOpenTickets(ctx)]);
+  const [orgs, unread, openTickets, inbox] = await Promise.all([listMyOrganizations(user.id), unreadNotificationCount(ctx), countOpenTickets(ctx), inboxCounts(ctx)]);
   kickWorker(ctx.orgId);
   const groups = visibleNav(ctx.permissions);
   const orgOptions = orgs.map((o) => ({ slug: o.slug, name: o.name }));
-  const navProps = { orgSlug, orgName: ctx.orgName, roleName: ctx.roleName, orgs: orgOptions, groups, unread, counts: { tickets: openTickets }, user: { name: user.name, email: user.email, image: user.image ?? null } };
+  const navProps = { orgSlug, orgName: ctx.orgName, roleName: ctx.roleName, orgs: orgOptions, groups, unread, counts: { tickets: openTickets, inbox: inbox?.unread ?? 0 }, user: { name: user.name, email: user.email, image: user.image ?? null } };
 
   return (
     <div className="flex min-h-screen">

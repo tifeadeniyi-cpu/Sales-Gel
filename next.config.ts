@@ -3,12 +3,14 @@ import type { NextConfig } from "next";
 // Cache Components is intentionally disabled: nearly every screen is per-tenant
 // and per-user, so we render dynamically and keep tenant data out of shared caches.
 // See docs/00-architecture.md → "Rendering model".
-const securityHeaders = [
+const baseHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
+const securityHeaders = [...baseHeaders, { key: "X-Frame-Options", value: "DENY" }, { key: "Content-Security-Policy", value: "frame-ancestors 'none'" }];
+// The web chat window is embedded on customers' own websites, so only /chat/* may be framed.
+const chatHeaders = [...baseHeaders, { key: "Content-Security-Policy", value: "frame-ancestors *" }];
 
 const nextConfig: NextConfig = {
   cacheComponents: false,
@@ -28,7 +30,10 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/((?!chat/).*)", headers: securityHeaders },
+      { source: "/chat/:path*", headers: chatHeaders },
+    ];
   },
 };
 

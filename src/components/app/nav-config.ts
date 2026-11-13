@@ -10,10 +10,12 @@ export interface NavItem {
   anyOf?: Permission[];
   /** Development phase in which the module ships. Items above CURRENT_PHASE render a "Coming soon" page. */
   phase: number;
+  /** Shown instead of the number when a module ships between phases (e.g. "8b"). */
+  phaseLabel?: string;
   description: string;
 }
 
-export const CURRENT_PHASE = 7;
+export const CURRENT_PHASE = 8;
 
 /** Primary navigation follows the SalesGel brief; secondary tools live under "More". */
 export const NAV_GROUPS: { label: string; collapsible?: boolean; items: NavItem[] }[] = [
@@ -28,8 +30,8 @@ export const NAV_GROUPS: { label: string; collapsible?: boolean; items: NavItem[
       { key: "orders", label: "Orders", path: "orders", icon: "ShoppingBag", anyOf: ["orders.read"], phase: 4, description: "Online and manual orders, payments and fulfillment." },
       { key: "tickets", label: "Tickets", path: "support/tickets", icon: "Ticket", anyOf: ["tickets.read", "tickets.read_assigned"], phase: 5, description: "Every customer issue, tracked to resolution." },
       { key: "marketing", label: "Marketing", path: "marketing", icon: "Megaphone", anyOf: ["campaigns.read"], phase: 9, description: "Segments and consent-aware campaigns." },
-      { key: "email", label: "Email", path: "email", icon: "Mail", anyOf: ["conversations.read", "conversations.read_assigned"], phase: 8, description: "Connect your mailbox to send and receive customer email." },
-      { key: "phone", label: "Phone & Messaging", path: "phone", icon: "Phone", anyOf: ["conversations.read", "conversations.read_assigned"], phase: 8, description: "Calls, voicemail and SMS through Twilio — built right after the Inbox." },
+      { key: "email", label: "Email", path: "inbox?channel=email", icon: "Mail", anyOf: ["conversations.read", "conversations.read_assigned"], phase: 8, description: "Customer email in the shared inbox." },
+      { key: "phone", label: "Phone & Messaging", path: "phone", icon: "Phone", anyOf: ["conversations.read", "conversations.read_assigned"], phase: 8.5, phaseLabel: "8b", description: "Calls, voicemail and SMS through Twilio — built right after the Inbox." },
       { key: "knowledge", label: "Knowledge Base", path: "support/knowledge", icon: "BookOpen", anyOf: ["tickets.read", "tickets.read_assigned", "knowledge.manage"], phase: 10, description: "Help articles for customers and agents." },
       { key: "automations", label: "Automations", path: "automations", icon: "Zap", anyOf: ["automations.read"], phase: 9, description: "Trigger → conditions → actions workflows." },
       { key: "analytics", label: "Reports & Insights", path: "analytics", icon: "LineChart", anyOf: ["reports.read"], phase: 10, description: "Sales, customer, channel, support and marketing reports." },
@@ -46,7 +48,7 @@ export const NAV_GROUPS: { label: string; collapsible?: boolean; items: NavItem[
       { key: "notifications", label: "Notifications", path: "notifications", icon: "Bell", phase: 1, description: "Assignments, mentions and alerts." },
       { key: "team", label: "Team & Permissions", path: "team", icon: "ShieldCheck", anyOf: ["members.read"], phase: 1, description: "Members, roles and teams." },
       { key: "integrations", label: "Apps & Integrations", path: "integrations", icon: "Plug", anyOf: ["integrations.read"], phase: 6, description: "Shopify, Stripe, email and messaging connections." },
-      { key: "support-inbox", label: "Support Inbox", path: "support/inbox", icon: "MessagesSquare", anyOf: ["tickets.read", "tickets.read_assigned"], phase: 8, description: "Support conversations across channels." },
+      { key: "support-inbox", label: "Support Inbox", path: "inbox?view=unassigned", icon: "MessagesSquare", anyOf: ["tickets.read", "tickets.read_assigned"], phase: 8, description: "Support conversations across channels." },
       { key: "forms", label: "Ticket Forms & Portal", path: "settings/support/forms", icon: "FileInput", anyOf: ["support.configure"], phase: 7, description: "Intake forms and the customer support portal." },
       { key: "workflows", label: "SLAs & Routing", path: "settings/support/sla", icon: "Workflow", anyOf: ["support.configure"], phase: 7, description: "Routing, SLAs and escalation." },
       { key: "segments", label: "Customer Segments", path: "segments", icon: "Filter", anyOf: ["segments.manage", "campaigns.read"], phase: 9, description: "Dynamic audiences built from rules." },

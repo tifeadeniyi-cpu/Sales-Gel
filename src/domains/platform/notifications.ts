@@ -17,6 +17,7 @@ export const NOTIFICATION_EVENTS = {
   "payment.received": "A customer pays through a payment link",
   "mention": "You're mentioned in a comment",
   "conversation.assigned": "A conversation is assigned to you",
+  "conversation.message": "A customer messages in a conversation assigned to you",
   "ticket.assigned": "A ticket is assigned to you",
   "ticket.escalated": "A ticket is escalated",
   "sla.warning": "An SLA is about to breach",

@@ -11,6 +11,9 @@ import { getDashboardLayout } from "@/domains/reporting/layout";
 import { COMPARE_LABELS, resolvePeriod } from "@/domains/reporting/period";
 import type { WidgetKey } from "@/domains/reporting/widgets";
 import { getSupportStats, getTicket } from "@/domains/support/service";
+import { listChannels } from "@/domains/inbox/connections";
+import { CHANNEL_LABELS as INBOX_CHANNEL_LABELS } from "@/domains/inbox/labels";
+import { canUseInbox, listConversations } from "@/domains/inbox/service";
 import { CHANNEL_LABELS } from "@/domains/support/validation";
 import { getTask, listTasks } from "@/domains/tasks/service";
 import { formatMoney } from "@/lib/money";
@@ -119,7 +122,7 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
     can(ctx, "tasks.read") ? listAssignableMembers(ctx) : Promise.resolve([]),
   ]);
   const currency = cards.revenue?.currency ?? ctx.defaultCurrency;
-  const [series, pipeline, followups, recentOrders, support, activity, ticketLookups] = await Promise.all([
+  const [series, pipeline, followups, recentOrders, support, activity, ticketLookups, inbox, channels] = await Promise.all([
     can(ctx, "orders.read") ? getSalesSeries(ctx, { ...scope, currency, metric }) : Promise.resolve(null),
     getPipelineSummary(ctx, scope),
     can(ctx, "tasks.read") ? listTasks(ctx, { scope: "mine", status: taskStatus }) : Promise.resolve(null),
@@ -127,7 +130,10 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
     getSupportStats(ctx, { since: period.from, until: period.to, membershipId: memberId ?? undefined }),
     getActivityFeed(ctx, { limit: 12, memberId }),
     can(ctx, "tickets.write") ? loadTicketLookups(ctx) : Promise.resolve(null),
+    canUseInbox(ctx) ? listConversations(ctx, { view: "open" }) : Promise.resolve(null),
+    listChannels(ctx),
   ]);
+  const liveChannels = channels.filter((c) => c.status !== "disconnected").length;
 
   // Record side panel (`?open=order:<id>` etc.) — the dashboard stays put underneath.
   let drawer: React.ReactNode = null;
@@ -198,15 +204,37 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
       </Widget>
     ) : null,
     inbox: (
-      <Widget id="inbox" title="Inbox Preview" subtitle="Conversations that need a reply">
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-8 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary"><MessageSquareOff className="size-6" aria-hidden /></span>
-          <div>
-            <p className="font-medium">No channels connected yet</p>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">Email, WhatsApp, Instagram, Messenger, SMS and website chat will appear here once connected. Nothing is being received until then.</p>
+      <Widget id="inbox" title="Inbox Preview" subtitle="Conversations that need a reply"
+        actions={liveChannels > 0 && inbox ? <Link href={`${base}/inbox`} className="text-primary hover:underline">Open inbox <ArrowRight className="inline size-3.5" /></Link> : undefined}>
+        {liveChannels === 0 && !inbox?.total ? (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-8 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary"><MessageSquareOff className="size-6" aria-hidden /></span>
+            <div>
+              <p className="font-medium">No channels connected yet</p>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">Website chat, email, WhatsApp, Instagram and Messenger appear here once connected. Nothing is being received until then.</p>
+            </div>
+            {can(ctx, "integrations.manage") && <Button asChild variant="outline"><Link href={`${base}/inbox/settings`}><Plug /> Connect channel</Link></Button>}
           </div>
-          <Button asChild variant="outline"><Link href={`${base}/inbox`}><Plug /> Connect channel</Link></Button>
-        </div>
+        ) : !inbox ? (
+          <p className="text-sm text-muted-foreground">You don&apos;t have access to conversations.</p>
+        ) : inbox.rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No open conversations. You&apos;re all caught up.</p>
+        ) : (
+          <ul className="divide-y text-sm">
+            {inbox.rows.slice(0, 6).map((r) => (
+              <li key={r.id}>
+                <Link href={`${base}/inbox?c=${r.id}`} className="flex items-center gap-3 py-2.5 hover:bg-muted/40">
+                  <span className={cn("size-2 shrink-0 rounded-full", r.unread ? "bg-primary" : "bg-transparent")} aria-label={r.unread ? "Unread" : undefined} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2"><span className={cn("truncate", r.unread && "font-semibold")}>{r.title}</span><span className="shrink-0 text-xs text-muted-foreground">{INBOX_CHANNEL_LABELS[r.channel]}</span></div>
+                    <p className="truncate text-muted-foreground">{r.lastPreview}</p>
+                  </div>
+                  <time className="shrink-0 text-xs text-muted-foreground">{formatRelative(r.lastMessageAt)}</time>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Widget>
     ),
     followups: followups ? (

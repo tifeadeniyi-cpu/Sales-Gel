@@ -134,6 +134,20 @@
       "when": 1794542736171,
       "tag": "0018_support_phase7_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794545444325,
+      "tag": "0019_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794545445325,
+      "tag": "0020_inbox_rls",
+      "breakpoints": true
     }
   ]
 }
