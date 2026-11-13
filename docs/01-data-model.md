@@ -71,6 +71,10 @@ Payment status is *derived* from verified `payments` minus `refunds`; it is neve
 
 `channel_connections` · `conversations` (org, channel, channel_connection_id, customer_id, status, assignee, last_message_at, window_expires_at) · `messages` (direction, provider_message_id UNIQUE per connection, delivery_status, error) · `message_attachments` · `conversation_assignments` · `conversation_record_links` · `saved_replies`.
 
+## Phone & calls (Phase 8b)
+
+`telecom_accounts` (one Twilio subaccount per org; encrypted credentials; settings jsonb: allowed countries, premium block, daily spend limit, ring time, greeting, after-hours) · `phone_numbers` (e164, provider sid, routing jsonb voicemail/agent/queue, status active/released) · `phone_agents` (availability, active_call_id) · `phone_queues`, `phone_queue_members` (position, last_offered_at for round robin) · `calls` (number per org, direction, provider_call_sid UNIQUE per account, from/to, business number, customer/lead/order/ticket links, agent, queue, status, outcome, started/answered/ended, duration, price micros + currency) · `call_legs` (customer/agent/pstn, status, last sequence) · `call_events` (append-only, event_key UNIQUE per org) · `call_notes` · `call_voicemails` (recording sid UNIQUE, new/reviewed/archived, assignee, soft delete) · `phone_usage_records` (append-only Twilio prices per leg).
+
 ## Marketing & automation (Phase 9)
 
 `segments`, `segment_rules` (a nested rule tree stored as jsonb plus a version) · `campaigns`, `campaign_recipients` (per-recipient status; UNIQUE(campaign_id, customer_id)), `campaign_events` · `automations`, `automation_versions` (an immutable published graph), `automation_executions` (idempotency_key UNIQUE), `automation_steps`, `automation_events`.

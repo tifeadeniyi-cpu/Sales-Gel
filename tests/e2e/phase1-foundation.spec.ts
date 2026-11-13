@@ -192,8 +192,8 @@ test("custom role and team management", async ({ page }) => {
 
 test("modules from later phases are clearly marked and show no fake data", async ({ page }) => {
   await signIn(page, owner);
-  await page.goto(`/o/${orgSlug}/phone`);
-  await expect(page.getByText("Scheduled for Phase 8b")).toBeVisible();
+  await page.goto(`/o/${orgSlug}/automations`);
+  await expect(page.getByText("Scheduled for Phase 9")).toBeVisible();
   await page.goto(`/o/${orgSlug}/does-not-exist`);
   await expect(page.getByText("Not found")).toBeVisible();
 });

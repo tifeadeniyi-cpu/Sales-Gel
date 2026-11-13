@@ -1,6 +1,7 @@
 "use client";
 import { AtSign, Mail, MapPin, Phone } from "lucide-react";
 import { InlineSelect, InlineText } from "@/components/app/inline-field";
+import { CallButton } from "@/components/app/softphone";
 import { Badge } from "@/components/ui/badge";
 import type { CustomerDetail } from "@/domains/customers/service";
 import type { CustomFieldDef } from "@/domains/customers/custom-fields";
@@ -11,6 +12,8 @@ import { TagEditor } from "./tag-editor";
 export interface ProfilePerms {
   write: boolean;
   assign: boolean;
+  /** Softphone is available for this member. */
+  call?: boolean;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -59,6 +62,7 @@ export function CustomerProfile({
               <Phone className="size-4 text-muted-foreground" aria-hidden />
               <a href={`tel:${p.e164}`} className="hover:underline">{p.phone}</a>
               {p.label && <span className="text-xs text-muted-foreground">{p.label}</span>}
+              {perms.call && c.status !== "merged" && <CallButton className="ml-auto h-7" dial={{ to: p.e164, customerId: c.id, label: c.displayName }} />}
             </li>
           ))}
           {c.identities.map((i) => (

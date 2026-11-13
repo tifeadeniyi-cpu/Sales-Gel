@@ -10,3 +10,4 @@ export * from "@/domains/support/schema";
 export * from "@/domains/reporting/schema";
 export * from "@/domains/integrations/schema";
 export * from "@/domains/inbox/schema";
+export * from "@/domains/phone/schema";

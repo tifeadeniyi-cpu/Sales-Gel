@@ -54,6 +54,9 @@ Non-members get **404, not 403**, so org slugs can't be enumerated.
 | `tickets.write` | Create, reply, change status |
 | `tickets.assign` | Assign and reassign |
 | `support.configure` | Forms, statuses, SLA, routing, portal |
+| `calls.read` / `calls.read_assigned` | View calls and voicemails (all, or only ones you handled/were assigned) |
+| `calls.make` | Make and answer calls in the softphone |
+| `phone.manage` | Phone numbers, queues, dialing restrictions, spend limits, phone settings |
 | `knowledge.manage` | Write and publish articles |
 | `tasks.read` / `tasks.write` | Tasks |
 | `segments.manage` | Build segments |

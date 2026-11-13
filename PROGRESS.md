@@ -1,6 +1,6 @@
 # Progress & Phase Status
 
-_Last updated: 2026-11-12 (Phase 8)_
+_Last updated: 2026-11-12 (Phase 8b)_
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -14,10 +14,10 @@ _Last updated: 2026-11-12 (Phase 8)_
 | **6** | **Commerce integrations (Shopify, Stripe payment links, job infrastructure)** | ✅ **Implemented and verified** (live provider test pending credentials) |
 | **7** | **Support forms, portal, SLA, routing** | ✅ **Implemented and verified** |
 | **8** | **Unified inbox** | ✅ **Implemented and verified** (web chat live; email/Meta pending your provider accounts) |
-| 9 | Marketing & automation | Not started |
+| **8b** | **Phone & Calls (Twilio), core P1–P6** | ✅ **Implemented and verified** (live calling pending Twilio platform credentials) |
+| 9 | Marketing & automation | ⏳ Next |
 | 10 | Analytics, knowledge base | Not started |
 | 11 | Billing & production hardening | Not started |
-| 8b | Phone & Calls (Twilio): see `docs/06-phone-system-plan.md` | ⏳ Next |
 
 ---
 
@@ -358,3 +358,51 @@ Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting durin
 
 ### Next
 - **Phase 8b — Phone & Calls (Twilio)**, then Phase 9 (marketing & automation).
+
+---
+
+## Phase 8b completion report: Phone & Calls (Twilio)
+
+Scope built: the spec's core calling system (plan phases P1–P6). Scope deferred on purpose is listed at the end.
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | telecom_accounts (one Twilio subaccount per workspace; auth token, API key and TwiML app encrypted with AES-GCM), phone_numbers, phone_agents, phone_queues + members, calls, call_legs, call_events (append-only, unique event key), call_notes, call_voicemails, phone_usage_records (append-only). Forced RLS on all 11 tables, composite tenant FKs | Migrations 0021–0022; integration (cross-workspace isolation, updates/deletes refused by the database) |
+| Permissions | New `calls.read`, `calls.read_assigned`, `calls.make`, `phone.manage`. Managers see every call; reps and agents see calls they handled plus unanswered calls to their queues or numbers. Existing workspaces get the grants through the migration backfill | Integration |
+| Setup (admins) | Enable phone (creates the subaccount, API key and TwiML app), search and buy US numbers (explicit cost confirmation), release (type-to-confirm), route each number to a person, a queue or voicemail; queues (ring everyone or rotate one at a time, ring time, voicemail or polite hang-up); calling rules (allowed countries, premium-rate block, daily spending limit, ring time, voicemail greeting, after-hours using the support business hours) | Integration (stubbed Twilio HTTP) + E2E for the pages |
+| Webhooks | Every Twilio callback is checked against the workspace subaccount's `X-Twilio-Signature` and AccountSid; unknown accounts, wrong tokens and other workspaces' accounts are refused | Integration |
+| Browser softphone | Persistent in every workspace page once phone is set up: availability (only Available members ring), dial pad, caller-ID choice, incoming answer/decline banner, mute, keypad (DTMF), call timer, links to the call record and customer, clear microphone-permission errors. Short-lived Voice access tokens (1 hour, refreshed automatically); no Twilio secrets reach the browser. The Voice SDK only loads when needed | Typecheck/lint/build; token claims checked in integration (no live audio in this environment) |
+| Outbound calls | Re-checked on the server for every call: the member must have `calls.make`, emergency short codes are never dialed, premium and disallowed-country numbers are blocked, the daily spending limit (from Twilio's billed prices) is enforced, caller ID must be one of the workspace's numbers. Click-to-call from customer profiles and tickets links the call to the record | Integration |
+| Inbound calls | Customer matched by phone (only when unambiguous), business-hours check, ring a person or a queue (all at once, or round robin least-recently-offered first), then the next agent or the fallback; voicemail with recording | Integration (routing, round robin chain, fallback) |
+| Call status | Duplicate webhooks are ignored (unique event key); late, out-of-order events never move a call backwards; final outcome (answered, missed, voicemail, no answer, busy, failed, canceled), talk and wait time; agent "on a call" state set and cleared; missed-call and voicemail notifications (switchable in notification settings); calls appear on the customer timeline | Integration |
+| Call history & detail | Filterable list (direction, outcome, name/number search), detail with summary, Twilio status timeline, legs, notes, linked customer/lead/order/ticket (link or unlink), follow-up task and phone-channel ticket from the call. Customer names are hidden from people who can't see that customer | Integration + E2E |
+| Voicemail | New / reviewed / archived, assign to a teammate, audio streamed through SalesGel with the viewer's permissions (no Twilio URLs exposed), delete removes the recording at Twilio (managers only); new-voicemail badge in the sidebar | Integration + E2E |
+| Costs | After each call a background job fetches Twilio's billed price per leg (retries until Twilio has priced it, no double counting) and shows the cost on the call and today's spend on the dashboard | Integration |
+| Phone dashboard | 7-day totals, answer rate, missed, new voicemail, average wait and talk time, live calls, team availability, answered calls per person | E2E (empty state) |
+
+**Test totals:** 220 unit/integration tests and 55 end-to-end tests, all passing, along with lint, typecheck and the production build.
+
+### Implemented but not fully tested
+- **Real calls.** All Twilio requests, webhooks, TwiML and access tokens follow Twilio's documented formats and are tested with stubbed HTTP and correctly signed webhooks. Real audio, microphone handling and Twilio's live behaviour can only be checked with a Twilio account.
+- The cost job runs about 90 seconds after a call through the background worker; on the Hobby plan it's picked up on the next worker run (any page visit in that workspace, or the daily cron).
+
+### Blocked by your Twilio account
+- **`TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN`** (your main Twilio account; SalesGel only uses them to create one subaccount per workspace) must be added as sensitive environment variables in Vercel. Until then the Phone page says calling isn't available on this server, and nothing is simulated.
+- Buying numbers costs money on the Twilio account; US local numbers only for now. Some countries need regulatory bundles (not built).
+
+### Known limitations
+- Calls ring in the browser only; there's no forwarding to mobile phones yet.
+- Agent availability is set by the person; it isn't changed automatically when the browser closes (stale "Available" agents just don't answer, and the call moves on).
+- No SMS yet (the numbers support it).
+
+### Not yet implemented (deferred on purpose)
+- Visual IVR menu editor → Phase 9 automations.
+- Call recording (beyond voicemail) → needs a consent decision per state; not built.
+- Sales scripts / support guides on calls → Phase 10 knowledge base.
+- Usage billing and invoicing → Phase 11.
+
+### Next
+- **Phase 9 — Marketing & automation.**
+

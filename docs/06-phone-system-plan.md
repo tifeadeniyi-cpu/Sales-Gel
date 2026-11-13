@@ -1,5 +1,7 @@
 # Phone & Calls Module: Plan
 
+> **Status (Phase 8b):** P1–P6 core is built (see PROGRESS.md). Code lives in `src/domains/phone/` (`twilio.ts` HTTP/TwiML/tokens, `account.ts` setup, `voice.ts` webhooks and routing, `calls.ts` history/voicemail/stats, `dialing.ts` restrictions); webhooks at `/api/telephony/[accountId]/[voice|status|dial-result|recording|voicemail-done]`. Deferred: IVR editor (Phase 9), call recording (consent decision), scripts (Phase 10), usage billing (Phase 11).
+
 Source spec: [spec-phone-system.md](spec-phone-system.md). It extends the CRM; it doesn't duplicate customers, leads, tickets or scripts.
 
 ## Where it fits in the roadmap

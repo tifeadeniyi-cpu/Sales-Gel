@@ -18,6 +18,8 @@ export const NOTIFICATION_EVENTS = {
   "mention": "You're mentioned in a comment",
   "conversation.assigned": "A conversation is assigned to you",
   "conversation.message": "A customer messages in a conversation assigned to you",
+  "call.missed": "A call to you or your queue is missed",
+  "call.voicemail": "A caller leaves voicemail for you or your queue",
   "ticket.assigned": "A ticket is assigned to you",
   "ticket.escalated": "A ticket is escalated",
   "sla.warning": "An SLA is about to breach",

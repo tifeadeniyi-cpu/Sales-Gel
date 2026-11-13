@@ -18,3 +18,12 @@ Each provider is built as an adapter behind a common interface (`authorize`, `ex
 | QuickBooks, Xero, calendars, Zapier, Make | later | OAuth | Developer apps | Varies |
 
 Provider requirements (API versions, scopes, messaging windows) are re-verified against current official documentation when each phase begins, because they change.
+
+## Twilio Voice (Phase 8b)
+
+- **Accounts:** the platform account (`TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN`, server env only) creates one subaccount per workspace (`POST /2010-04-01/Accounts.json`). Everything else runs with the subaccount's own credentials, stored encrypted: an API key (`/Keys.json`) signs browser access tokens, and a TwiML app (`/Applications.json`) points outbound calls at `/api/telephony/<accountId>/voice`.
+- **Numbers:** `AvailablePhoneNumbers/US/Local.json` to search, `IncomingPhoneNumbers.json` to buy (Voice URL + status callback set on purchase), `DELETE IncomingPhoneNumbers/<sid>.json` to release.
+- **Browser:** `@twilio/voice-sdk` 2.x with a short-lived Access Token (HS256 JWT, `cty: twilio-fpa;v=1`, grants: identity + voice incoming/outgoing application). Identity is `m` + the membership id without dashes.
+- **Webhooks:** every request is checked with `X-Twilio-Signature` (base64 HMAC-SHA1 of the full URL plus sorted POST params, keyed with the subaccount auth token) and the AccountSid. Status callbacks are deduplicated on `CallSid:CallStatus:SequenceNumber` and applied with status precedence so late events never move a call backwards.
+- **Prices:** after a call, `GET Calls/<sid>.json` and `Calls.json?ParentCallSid=` give Twilio's billed price per leg; stored in `phone_usage_records` and used for the daily spending limit.
+- **Voicemail audio:** fetched server-side from `Recordings/<sid>.mp3` and streamed to permitted users; deleted with `DELETE Recordings/<sid>.json`.

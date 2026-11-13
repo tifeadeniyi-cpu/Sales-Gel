@@ -1,3 +1,4 @@
+import { softphoneConfig } from "@/domains/phone/account";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Clock } from "lucide-react";
@@ -42,6 +43,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   if (!c) notFound();
   const tab = (await searchParams).tab ?? "overview";
   const perms = customerPerms(ctx);
+  const canCall = !!(await softphoneConfig(ctx));
   const base = `/o/${orgSlug}/customers`;
   const [lookups, notes, timeline] = await Promise.all([
     loadCustomerLookups(ctx),
@@ -170,7 +172,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
             </div>
             <Card>
               <CardContent className="pt-5">
-                <CustomerProfile orgSlug={orgSlug} customer={c} members={lookups.members} allTags={lookups.tags} customFields={lookups.customFields} perms={{ write: perms.write, assign: perms.assign }} />
+                <CustomerProfile orgSlug={orgSlug} customer={c} members={lookups.members} allTags={lookups.tags} customFields={lookups.customFields} perms={{ write: perms.write, assign: perms.assign, call: canCall }} />
               </CardContent>
             </Card>
           </div>

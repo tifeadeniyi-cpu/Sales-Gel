@@ -10,6 +10,7 @@ export const JOB_HANDLERS: Record<string, JobHandler> = {
   "integration.webhook": async (j) => (await import("@/domains/integrations/webhooks")).processWebhookJob(j),
   "shopify.sync": async (j) => (await import("@/domains/integrations/shopify/sync")).runShopifySync(j),
   "support.sla_check": async (job) => (await import("@/domains/support/sla")).runSlaCheck(job),
+  "phone.usage": async (job) => (await import("@/domains/phone/voice")).runUsageFetch(job),
   "shopify.setup": async (j) => (await import("@/domains/integrations/shopify/connect")).runShopifySetup(j),
 };
 

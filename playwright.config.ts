@@ -30,6 +30,6 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     // Fixed test-only key so the Integrations page renders its connect forms; never used outside E2E.
-    env: { INTEGRATIONS_ENCRYPTION_KEY: "dGVzdC1vbmx5LWUyZS1rZXktMzItYnl0ZXMtbG9uZyE=", ...env, BETTER_AUTH_URL: baseURL, NEXT_PUBLIC_APP_URL: baseURL, NODE_ENV: "production" },
+    env: { INTEGRATIONS_ENCRYPTION_KEY: "dGVzdC1vbmx5LWUyZS1rZXktMzItYnl0ZXMtbG9uZyE=", ...env, BETTER_AUTH_URL: baseURL, NEXT_PUBLIC_APP_URL: baseURL, NODE_ENV: "production", TWILIO_ACCOUNT_SID: "", TWILIO_AUTH_TOKEN: "" },
   },
 });

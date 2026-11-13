@@ -10,7 +10,7 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
-import { ALL_PERMISSIONS, PERMISSIONS, permissionDomain } from "../src/server/authz/catalog";
+import { ALL_PERMISSIONS, SYSTEM_ROLES, PERMISSIONS, permissionDomain } from "../src/server/authz/catalog";
 
 async function main() {
   const migrateUrl = process.env.DATABASE_URL_MIGRATE;
@@ -41,6 +41,8 @@ async function main() {
   console.log("migrations applied");
 
   // 3. Sync permission catalog (upsert + remove stale keys)
+  const known = new Set((await sql<{ key: string }[]>`SELECT key FROM permissions`).map((r) => r.key));
+  const introduced = known.size ? ALL_PERMISSIONS.filter((k) => !known.has(k)) : [];
   for (const key of ALL_PERMISSIONS) {
     await sql`
       INSERT INTO permissions (key, domain, description)
@@ -49,6 +51,31 @@ async function main() {
   }
   await sql`DELETE FROM permissions WHERE NOT (key = ANY(${ALL_PERMISSIONS}))`;
   console.log(`permission catalog synced (${ALL_PERMISSIONS.length})`);
+
+  // 4. A permission introduced by this release is granted once to existing system roles whose
+  //    template includes it. Later edits by workspace admins are never overridden.
+  if (introduced.length) {
+    // Runs as the table owner. FORCE RLS is lifted only inside this transaction (DDL is
+    // transactional), so the grant can span workspaces without a tenant scope.
+    let granted = 0;
+    await sql.begin(async (tx) => {
+      await tx`ALTER TABLE roles NO FORCE ROW LEVEL SECURITY`;
+      await tx`ALTER TABLE role_permissions NO FORCE ROW LEVEL SECURITY`;
+      for (const [roleKey, def] of Object.entries(SYSTEM_ROLES)) {
+        const grant = introduced.filter((k) => (def.permissions as readonly string[]).includes(k));
+        if (!grant.length) continue;
+        const rows = await tx`
+          INSERT INTO role_permissions (organization_id, role_id, permission_key)
+          SELECT r.organization_id, r.id, p FROM roles r CROSS JOIN unnest(${grant}::text[]) AS p
+          WHERE r.is_system AND r.key = ${roleKey}
+          ON CONFLICT DO NOTHING RETURNING role_id`;
+        granted += rows.length;
+      }
+      await tx`ALTER TABLE roles FORCE ROW LEVEL SECURITY`;
+      await tx`ALTER TABLE role_permissions FORCE ROW LEVEL SECURITY`;
+    });
+    console.log(`granted ${introduced.join(", ")} to existing system roles (${granted} grants)`);
+  }
 
   await sql.end();
 }
