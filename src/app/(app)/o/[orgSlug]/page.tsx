@@ -255,11 +255,11 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
           {[
             ["Open", String(support.open), `${base}/support/tickets?view=open${memberQ("assignee")}`],
             ["Unassigned", String(support.unassigned), `${base}/support/tickets?view=unassigned`],
-            ["Overdue", "—", null],
+            ["Overdue", support.withPolicy ? String(support.slaOverdue) : "—", support.withPolicy ? `${base}/support/tickets?view=sla` : null],
             [`Resolved`, String(support.resolved), `${base}/support/tickets?view=resolved${memberQ("assignee")}`],
           ].map(([l, v, href]) => {
-            const inner = (<><dt className="text-xs text-muted-foreground">{l}</dt><dd className="text-xl font-bold tabular-nums">{v}</dd>{l === "Overdue" && <dd className="text-[11px] text-muted-foreground">Needs SLA targets</dd>}</>);
-            return href ? <Link key={l} href={href} className="rounded-lg border p-3 hover:border-primary/40">{inner}</Link> : <div key={l} className="rounded-lg border bg-muted/30 p-3" title="Overdue tickets are calculated once SLA policies are configured (Phase 7).">{inner}</div>;
+            const inner = (<><dt className="text-xs text-muted-foreground">{l}</dt><dd className="text-xl font-bold tabular-nums">{v}</dd>{l === "Overdue" && !support.withPolicy && <dd className="text-[11px] text-muted-foreground">Needs SLA targets</dd>}</>);
+            return href ? <Link key={l} href={href} className="rounded-lg border p-3 hover:border-primary/40">{inner}</Link> : <div key={l} className="rounded-lg border bg-muted/30 p-3" title="Overdue tickets are calculated once SLA policies are configured in Settings → Support.">{inner}</div>;
           })}
         </dl>
         {support.priorityTickets.length === 0 ? <p className="text-center text-sm text-muted-foreground">No open tickets.</p> : (

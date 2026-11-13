@@ -6,6 +6,7 @@ import { CHANNEL_LABELS } from "@/domains/support/validation";
 import { describeAudit } from "@/lib/audit-labels";
 import { cn, formatDateTime, formatRelative } from "@/lib/utils";
 import type { OrgContext } from "@/server/authz/context";
+import { SLA_LABEL, SLA_TONE, slaClock, type SlaState } from "@/domains/support/sla-state";
 import { Composer } from "./composer";
 import { CATEGORY_TONE, PRIORITY } from "./labels";
 import { StatusControl, TicketProperties } from "./ticket-properties";
@@ -55,7 +56,9 @@ export function TicketConversation({ ctx, orgSlug, t }: { ctx: OrgContext; orgSl
             <span className="font-medium text-ink">{m.kind === "customer" ? (t.customerName ?? "Customer") : (m.authorName ?? "Team member")}</span>
             <Badge tone={m.kind === "note" ? "highlight" : m.kind === "reply" ? "brand" : "neutral"}>{KIND[m.kind as keyof typeof KIND].label}</Badge>
             {m.kind === "customer" && m.channel && <span>via {CHANNEL_LABELS[m.channel as keyof typeof CHANNEL_LABELS] ?? m.channel}{m.authorName ? ` · logged by ${m.authorName}` : ""}</span>}
-            {m.kind === "reply" && m.deliveryStatus === "not_sent" && <span title="Channel delivery arrives with the Inbox build">Not sent to customer</span>}
+            {m.kind === "reply" && m.deliveryStatus === "not_sent" && (t.portalAccess
+              ? <span title="The customer can read this on their portal page">Visible in customer portal</span>
+              : <span title="Channel delivery arrives with the Inbox build">Not sent to customer</span>)}
             <time className="ml-auto" dateTime={m.createdAt.toISOString()} title={formatDateTime(m.createdAt, ctx.timezone)}>{formatRelative(m.createdAt)}</time>
           </header>
           <p className="whitespace-pre-wrap text-sm">{m.body}</p>
@@ -67,13 +70,43 @@ export function TicketConversation({ ctx, orgSlug, t }: { ctx: OrgContext; orgSl
   );
 }
 
+function SlaRow({ label, state, due, tz, note }: { label: string; state: SlaState; due: Date | null; tz: string; note?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-2">
+      <div>
+        <div className="font-medium">{label}</div>
+        <div className="text-xs text-muted-foreground">
+          {note ?? (due ? `${state === "met" || state === "breached" ? "Target was" : "Due"} ${formatDateTime(due, tz)}` : state === "met" ? "Target met" : "No target")}
+        </div>
+      </div>
+      <Badge tone={SLA_TONE[state]}>{state === "on_track" || state === "at_risk" ? `${SLA_LABEL[state]} · ${formatRelative(due!)}` : SLA_LABEL[state]}</Badge>
+    </div>
+  );
+}
+
+function SlaCard({ ctx, t }: { ctx: OrgContext; t: TicketDetail }) {
+  const s = t.sla!;
+  const done = ["resolved", "closed"].includes(t.statusCategory);
+  const fr = slaClock(s.firstResponseDueAt, !!t.firstRespondedAt, s.firstResponseBreachedAt, new Date(), { met: s.firstResponseMet });
+  const res = slaClock(s.resolutionDueAt, done, s.resolutionBreachedAt, new Date(), { paused: s.paused && !done });
+  return (
+    <Card>
+      <CardHeader><CardTitle>SLA</CardTitle><p className="text-xs text-muted-foreground">{s.policy}{s.escalatedAt ? ` · escalated ${formatRelative(s.escalatedAt)}` : ""}</p></CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <SlaRow label="First reply" state={fr} due={s.firstResponseDueAt} tz={ctx.timezone} note={!s.firstResponseDueAt && !s.firstResponseBreachedAt ? "No target" : undefined} />
+        <SlaRow label="Resolution" state={res} due={s.resolutionDueAt} tz={ctx.timezone} note={res === "paused" ? "Paused while waiting on the customer" : undefined} />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TicketWorkspace({ ctx, orgSlug, t, lookups, timeline }: { ctx: OrgContext; orgSlug: string; t: TicketDetail; lookups: Lookups; timeline?: { id: string; action: string; actorName: string | null; createdAt: Date }[] }) {
   const canWrite = ctx.permissions.has("tickets.write");
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
       <div className="space-y-4">
         <TicketConversation ctx={ctx} orgSlug={orgSlug} t={t} />
-        {canWrite && <Composer orgSlug={orgSlug} ticketId={t.id} closed={t.statusCategory === "closed"} contact={t.contactEmail ?? t.contactPhone} />}
+        {canWrite && <Composer orgSlug={orgSlug} ticketId={t.id} closed={t.statusCategory === "closed"} contact={t.contactEmail ?? t.contactPhone} portal={!!t.portalAccess} />}
       </div>
       <div className="space-y-4">
         <Card>
@@ -90,6 +123,22 @@ export function TicketWorkspace({ ctx, orgSlug, t, lookups, timeline }: { ctx: O
             </div>
           </CardContent>
         </Card>
+        {t.sla && <SlaCard ctx={ctx} t={t} />}
+        {t.form && (
+          <Card>
+            <CardHeader><CardTitle>Form answers</CardTitle><p className="text-xs text-muted-foreground">{t.form.name} · version {t.form.version}</p></CardHeader>
+            <CardContent>
+              <dl className="space-y-2 text-sm">
+                {t.form.answers.map((a) => (
+                  <div key={a.key}>
+                    <dt className="text-xs text-muted-foreground">{a.label}</dt>
+                    <dd className="whitespace-pre-wrap break-words">{a.value === null || a.value === "" ? <span className="text-muted-foreground">—</span> : a.value === true ? "Yes" : Array.isArray(a.value) ? a.value.join(", ") : String(a.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
         {timeline && (
           <Card>
             <CardHeader><CardTitle>Activity</CardTitle></CardHeader>

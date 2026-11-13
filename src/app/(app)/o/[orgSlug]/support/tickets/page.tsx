@@ -98,13 +98,14 @@ export default async function TicketsPage({ params, searchParams }: { params: Pr
           <option value="priority">Priority</option>
           <option value="newest">Newest</option>
           <option value="oldest">Oldest</option>
+          <option value="due">Next SLA due</option>
         </NativeSelect>
         <button type="submit" className="rounded-md border px-3 text-sm hover:bg-muted">Apply</button>
         {(keep.q || keep.priority || keep.assignee || keep.type) && <Link href={qs({ q: undefined, priority: undefined, assignee: undefined, type: undefined })} className="self-center text-sm text-primary hover:underline">Clear</Link>}
       </form>
       {data.total === 0 && data.filters.view === defaultView && !keep.q && !keep.priority && !keep.assignee && !keep.type ? (
         <EmptyState icon={<Ticket className="size-8" />} title={readAll ? "No open tickets" : "No tickets assigned to you"}
-          description="Create a ticket when a customer reports a problem by phone, message or in person. Web forms and the customer portal arrive in Phase 7."
+          description="Create a ticket when a customer reports a problem by phone, message or in person. Customers can also send requests through your support portal (Settings → Support → Customer portal)."
           action={ctx.permissions.has("tickets.write") && <NewTicketButton orgSlug={orgSlug} lookups={lookups.lookups} />} />
       ) : (
         <Card className="overflow-hidden">{data.rows.length ? <TicketTable rows={data.rows} /> : <p className="p-6 text-sm text-muted-foreground">No tickets match.</p>}</Card>

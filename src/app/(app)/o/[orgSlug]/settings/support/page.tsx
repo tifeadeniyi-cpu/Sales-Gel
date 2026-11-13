@@ -6,6 +6,7 @@ import { can, canAny } from "@/server/authz/guards";
 import { requireOrgContext } from "@/server/authz/request";
 import { SettingsTabs } from "../settings-tabs";
 import { StatusManager, TypeManager } from "./support-config-client";
+import { SupportSubnav } from "./support-subnav";
 
 export default async function SupportSettingsPage({ params }: { params: Promise<{ orgSlug: string }> }) {
   const { orgSlug } = await params;
@@ -15,8 +16,9 @@ export default async function SupportSettingsPage({ params }: { params: Promise<
   const canManage = can(ctx, "support.configure");
   return (
     <>
-      <PageHeader title="Settings" description="Ticket statuses and types." />
+      <PageHeader title="Settings" description="How your support desk works." />
       <SettingsTabs orgSlug={orgSlug} active="support" showAudit={can(ctx, "audit.read")} showSupport />
+      <SupportSubnav orgSlug={orgSlug} active="statuses" canConfigure={canManage} />
       <div className="mt-6 grid gap-6">
         <Card>
           <CardHeader><CardTitle>Ticket statuses</CardTitle><CardDescription>Name statuses the way your team talks. Each one behaves like a standard stage, which drives queues and reporting.</CardDescription></CardHeader>

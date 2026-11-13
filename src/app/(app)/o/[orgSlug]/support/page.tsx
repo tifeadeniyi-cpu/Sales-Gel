@@ -10,6 +10,8 @@ import { CATEGORY_TONE, PRIORITY } from "./tickets/_components/labels";
 import { loadTicketLookups } from "./tickets/_components/load";
 import { NewTicketButton } from "./tickets/_components/new-ticket-dialog";
 
+const pct = (met: number, of: number) => (of ? `${Math.round((met / of) * 100)}%` : "—");
+
 function minutes(m: number | null) {
   if (m === null) return "—";
   if (m < 60) return `${Math.round(m)} min`;
@@ -33,7 +35,7 @@ export default async function SupportDashboard({ params }: { params: Promise<{ o
           ["Open", s!.open, `${base}?view=open`, "Now"],
           ["Unassigned", s!.unassigned, `${base}?view=unassigned`, "Now"],
           ["Urgent & high", s!.urgent, `${base}?view=open&sort=priority`, "Now"],
-          ["Awaiting our reply", s!.awaitingReply, `${base}?view=open`, "Now"],
+          ["SLA: overdue & due soon", s!.slaAttention, `${base}?view=sla`, s!.slaOverdue ? `${s!.slaOverdue} overdue` : "Now"],
           ["Created", s!.created, `${base}?view=all&sort=newest`, "Last 30 days"],
           ["Resolved", s!.resolved, `${base}?view=resolved`, "Last 30 days"],
         ].map(([l, v, href, hint]) => (
@@ -65,7 +67,13 @@ export default async function SupportDashboard({ params }: { params: Promise<{ o
           <CardHeader><CardTitle>Response</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div><div className="text-xs text-muted-foreground">Median first reply (30 days)</div><div className="text-xl font-semibold">{minutes(s!.medianFirstResponseMin)}</div></div>
-            <p className="text-xs text-muted-foreground">Measured from ticket creation to the first saved reply. SLA targets and business hours arrive in Phase 7, so no SLA compliance is shown yet.</p>
+            <div><div className="text-xs text-muted-foreground">Awaiting our reply</div><div className="text-xl font-semibold"><Link href={`${base}?view=open`} className="hover:underline">{s!.awaitingReply}</Link></div></div>
+            <div><div className="text-xs text-muted-foreground">First reply within SLA (30 days)</div><div className="text-xl font-semibold">{pct(s!.frMet, s!.frDecided)}</div><div className="text-[11px] text-muted-foreground">{s!.frDecided ? `${s!.frMet} of ${s!.frDecided} tickets` : "No tickets with a target yet"}</div></div>
+            <div><div className="text-xs text-muted-foreground">Resolved within SLA (30 days)</div><div className="text-xl font-semibold">{pct(s!.resMet, s!.resDecided)}</div><div className="text-[11px] text-muted-foreground">{s!.resDecided ? `${s!.resMet} of ${s!.resDecided} tickets` : "No resolved tickets with a target yet"}</div></div>
+            <p className="text-xs text-muted-foreground">
+              Median measured from creation to the first saved reply, in clock time. SLA targets count business hours per your policies.
+              {!s!.withPolicy && <> No SLA policies apply yet{ctx.permissions.has("support.configure") ? <> — <Link href={`/o/${orgSlug}/settings/support/sla`} className="text-primary hover:underline">set one up</Link></> : null}.</>}
+            </p>
           </CardContent>
         </Card>
       </div>

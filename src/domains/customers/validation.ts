@@ -12,6 +12,8 @@ export const CUSTOMER_SOURCES = [
   "in_person",
   "referral",
   "import",
+  "shopify",
+  "support_portal",
   "other",
 ] as const;
 export const CHANNELS = ["email", "phone", "whatsapp", "instagram", "facebook", "sms"] as const;
@@ -28,6 +30,8 @@ export const SOURCE_LABELS: Record<(typeof CUSTOMER_SOURCES)[number], string> = 
   in_person: "In person",
   referral: "Referral",
   import: "Import",
+  shopify: "Shopify",
+  support_portal: "Support portal",
   other: "Other",
 };
 

@@ -15,7 +15,7 @@ const TABS = [
   { kind: "customer", label: "Log customer message" },
 ] as const;
 
-export function Composer({ orgSlug, ticketId, closed, contact }: { orgSlug: string; ticketId: string; closed: boolean; contact: string | null }) {
+export function Composer({ orgSlug, ticketId, closed, contact, portal = false }: { orgSlug: string; ticketId: string; closed: boolean; contact: string | null; portal?: boolean }) {
   const router = useRouter();
   const [kind, setKind] = useState<(typeof TABS)[number]["kind"]>(closed ? "note" : "reply");
   const [body, setBody] = useState("");
@@ -55,7 +55,9 @@ export function Composer({ orgSlug, ticketId, closed, contact }: { orgSlug: stri
       <div className="space-y-2 p-3">
         {kind === "reply" && (
           <p className="rounded-md bg-info/10 px-3 py-2 text-xs text-info">
-            Saved on the ticket for your team and the customer record. Sending replies by email or WhatsApp arrives with channel connections (Inbox build){contact ? ` — reach the customer at ${contact} for now` : ""}.
+            {portal
+              ? "The customer sees replies on their portal request page. Email and WhatsApp delivery arrive with channel connections (Inbox build)."
+              : <>Saved on the ticket for your team and the customer record. Sending replies by email or WhatsApp arrives with channel connections (Inbox build){contact ? ` — reach the customer at ${contact} for now` : ""}.</>}
           </p>
         )}
         {kind === "customer" && (

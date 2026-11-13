@@ -17,7 +17,10 @@ import { withTenant } from "@/server/db/tenant";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/server/errors";
 import { parseInput } from "@/server/validate";
 import { newId } from "@/lib/ids";
-import { files, supportTickets, ticketAttachments, ticketMessages, ticketRecordLinks, ticketStatuses, ticketTypes, type StatusCategory } from "./schema";
+import { routeTicket } from "./routing";
+import { applySla, slaOnFirstResponse, slaOnStatusChange } from "./sla";
+import { portalAccessFor } from "./portal";
+import { files, slaPolicies, ticketFormVersions, ticketSlaEvents, supportTickets, ticketAttachments, ticketMessages, ticketRecordLinks, ticketStatuses, ticketTypes, type StatusCategory } from "./schema";
 import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_FILES,
@@ -118,7 +121,7 @@ async function assertType(tx: Tx, ctx: OrgContext, id: string | null | undefined
   if (!t || t.archivedAt) throw new ValidationError("Choose a ticket type.", { ticketTypeId: ["Choose a ticket type."] });
 }
 
-async function statusOf(tx: Tx, orgId: string, category: StatusCategory) {
+export async function statusOf(tx: Tx, orgId: string, category: StatusCategory) {
   const rows = await tx.select().from(ticketStatuses).where(and(eq(ticketStatuses.organizationId, orgId), eq(ticketStatuses.category, category), isNull(ticketStatuses.archivedAt))).orderBy(asc(ticketStatuses.position)).limit(1);
   return rows[0] ?? null;
 }
@@ -231,6 +234,8 @@ export async function createTicket(ctx: OrgContext, input: TicketInput, attachme
     } else await storeFiles(tx, ctx, id, null, attachments);
     if (order) await tx.insert(ticketRecordLinks).values({ organizationId: ctx.orgId, ticketId: id, orderId: order.id, createdByUserId: ctx.userId });
     if (lead) await tx.insert(ticketRecordLinks).values({ organizationId: ctx.orgId, ticketId: id, leadId: lead.id, createdByUserId: ctx.userId });
+    await routeTicket(tx, ctx.orgId, id, { fillOnly: true });
+    await applySla(tx, ctx.orgId, id, now);
     await audit(tx, ctx, { action: "ticket.created", entityType: "ticket", entityId: id, metadata: { number, subject: data.subject, priority: data.priority, channel: data.channel } });
     if (customer) {
       await audit(tx, ctx, { action: "customer.ticket_created", entityType: "customer", entityId: customer.id, metadata: { ticketId: id, preview: `TCK-${number} · ${data.subject}` } });
@@ -255,6 +260,7 @@ export async function updateTicket(ctx: OrgContext, id: string, input: Record<st
     if ("ticketTypeId" in patch) await assertType(tx, ctx, patch.ticketTypeId);
     await tx.update(supportTickets).set({ ...patch, updatedAt: new Date() }).where(eq(supportTickets.id, id));
     await audit(tx, ctx, { action: "ticket.updated", entityType: "ticket", entityId: id, changes: diff(t, patch) });
+    if ("priority" in patch || "ticketTypeId" in patch || "channel" in patch) await applySla(tx, ctx.orgId, id);
   });
 }
 
@@ -271,7 +277,7 @@ export async function assignTicket(ctx: OrgContext, id: string, membershipId: st
   });
 }
 
-async function applyStatus(tx: Tx, ctx: OrgContext, t: typeof supportTickets.$inferSelect, to: typeof ticketStatuses.$inferSelect, extra: { resolutionCategory?: string | null; resolutionNote?: string | null } = {}) {
+export async function applyStatus(tx: Tx, ctx: { orgId: string; userId: string | null }, t: typeof supportTickets.$inferSelect, to: typeof ticketStatuses.$inferSelect, extra: { resolutionCategory?: string | null; resolutionNote?: string | null } = {}) {
   const now = new Date();
   const wasDone = isDone(t.statusCategory);
   const nowDone = isDone(to.category);
@@ -294,6 +300,7 @@ async function applyStatus(tx: Tx, ctx: OrgContext, t: typeof supportTickets.$in
     patch.resolutionNote = null;
   }
   await tx.update(supportTickets).set(patch).where(eq(supportTickets.id, t.id));
+  await slaOnStatusChange(tx, ctx.orgId, t, to.category, now);
   const action = wasDone && !nowDone ? "ticket.reopened" : to.category === "resolved" ? "ticket.resolved" : to.category === "closed" ? "ticket.closed" : "ticket.status_changed";
   await audit(tx, ctx, { action, entityType: "ticket", entityId: t.id, metadata: { from: t.statusCategory, to: to.category, status: to.name, resolutionCategory: extra.resolutionCategory ?? undefined } });
   if (action === "ticket.resolved" && t.customerId) await audit(tx, ctx, { action: "customer.ticket_resolved", entityType: "customer", entityId: t.customerId, metadata: { ticketId: t.id, preview: `TCK-${t.number} · ${t.subject}` } });
@@ -328,7 +335,10 @@ export async function addTicketMessage(ctx: OrgContext, id: string, input: unkno
     await tx.insert(ticketMessages).values({ id: mid, organizationId: ctx.orgId, ticketId: id, kind: data.kind, body: data.body, authorUserId: ctx.userId, channel: data.channel ?? null, deliveryStatus: data.kind === "customer" ? "received" : "not_sent" });
     await storeFiles(tx, ctx, id, mid, attachments);
     const patch: Partial<typeof supportTickets.$inferInsert> = { lastActivityAt: now, updatedAt: now };
-    if (data.kind === "reply" && !t.firstRespondedAt) patch.firstRespondedAt = now;
+    if (data.kind === "reply" && !t.firstRespondedAt) {
+      patch.firstRespondedAt = now;
+      await slaOnFirstResponse(tx, ctx.orgId, t, now);
+    }
     if (data.kind === "customer") patch.lastCustomerMessageAt = now;
     await tx.update(supportTickets).set(patch).where(eq(supportTickets.id, id));
     await audit(tx, ctx, { action: data.kind === "reply" ? "ticket.replied" : data.kind === "note" ? "ticket.note_added" : "ticket.customer_message", entityType: "ticket", entityId: id, metadata: { messageId: mid, attachments: attachments.length } });
@@ -480,12 +490,15 @@ function viewWhere(ctx: OrgContext, view: string): SQL | undefined {
     case "open": return inArray(supportTickets.statusCategory, ACTIVE);
     case "waiting": return inArray(supportTickets.statusCategory, ["pending_customer", "pending_internal"]);
     case "escalated": return eq(supportTickets.statusCategory, "escalated");
+    case "sla": return and(inArray(supportTickets.statusCategory, ACTIVE), sql`(${NEXT_DUE} < now() + interval '1 hour' or (${supportTickets.firstResponseBreachedAt} is not null and ${supportTickets.firstRespondedAt} is null) or ${supportTickets.resolutionBreachedAt} is not null)`);
     case "resolved": return eq(supportTickets.statusCategory, "resolved");
     case "closed": return eq(supportTickets.statusCategory, "closed");
     default: return undefined;
   }
 }
 
+/** The next unmet SLA deadline (first reply until answered, then resolution unless paused). */
+const NEXT_DUE = sql`least(case when ${supportTickets.firstRespondedAt} is null then ${supportTickets.firstResponseDueAt} end, case when ${supportTickets.slaPausedAt} is null then ${supportTickets.resolutionDueAt} end)`;
 const PRIORITY_ORDER = sql`case ${supportTickets.priority} when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end`;
 
 const listSelect = {
@@ -494,6 +507,8 @@ const listSelect = {
   customerName: customers.displayName, assigneeMembershipId: supportTickets.assigneeMembershipId, assigneeName: user.name, typeName: ticketTypes.name,
   lastActivityAt: supportTickets.lastActivityAt, createdAt: supportTickets.createdAt, firstRespondedAt: supportTickets.firstRespondedAt,
   lastCustomerMessageAt: supportTickets.lastCustomerMessageAt,
+  firstResponseDueAt: supportTickets.firstResponseDueAt, resolutionDueAt: supportTickets.resolutionDueAt, slaPausedAt: supportTickets.slaPausedAt,
+  firstResponseBreachedAt: supportTickets.firstResponseBreachedAt, resolutionBreachedAt: supportTickets.resolutionBreachedAt, slaPolicyId: supportTickets.slaPolicyId,
 };
 
 function baseList(tx: Tx) {
@@ -537,6 +552,7 @@ export async function listTickets(ctx: OrgContext, filters: TicketFilters = {}) 
       f.sort === "newest" ? [desc(supportTickets.createdAt)] :
       f.sort === "oldest" ? [asc(supportTickets.createdAt)] :
       f.sort === "priority" ? [asc(PRIORITY_ORDER), desc(supportTickets.lastActivityAt)] :
+      f.sort === "due" || f.view === "sla" ? [sql`${NEXT_DUE} asc nulls last`, asc(PRIORITY_ORDER)] :
       [desc(supportTickets.lastActivityAt)];
     const [{ total }] = await tx.select({ total: count() }).from(supportTickets).leftJoin(customers, eq(customers.id, supportTickets.customerId)).where(where);
     const rows = await baseList(tx).where(where).orderBy(...order).limit(f.pageSize).offset((f.page - 1) * f.pageSize);
@@ -571,6 +587,10 @@ export async function getTicket(ctx: OrgContext, id: string) {
         .where(eq(ticketRecordLinks.ticketId, id)),
     ]);
     const [masked] = await maskRows(tx, ctx, [{ customerId: row.t.customerId, customerName: row.customerName }]);
+    const [policy] = row.t.slaPolicyId ? await tx.select({ name: slaPolicies.name }).from(slaPolicies).where(eq(slaPolicies.id, row.t.slaPolicyId)) : [];
+    const slaEvents = row.t.slaPolicyId ? await tx.select({ kind: ticketSlaEvents.kind }).from(ticketSlaEvents).where(eq(ticketSlaEvents.ticketId, id)) : [];
+    const [form] = row.t.formVersionId ? await tx.select({ name: ticketFormVersions.name, version: ticketFormVersions.version, fields: ticketFormVersions.fields }).from(ticketFormVersions).where(eq(ticketFormVersions.id, row.t.formVersionId)) : [];
+    const portalAccess = await portalAccessFor(tx, id);
     const seeOrders = ctx.permissions.has("orders.read");
     const seeLead = (owner: string | null) => ctx.permissions.has("leads.read") || (ctx.permissions.has("leads.read_assigned") && owner === ctx.membershipId);
     return {
@@ -579,6 +599,14 @@ export async function getTicket(ctx: OrgContext, id: string) {
       customerName: masked.customerName, customerVisible: masked.customerVisible,
       messages: messages.map((x) => ({ ...x.m, authorName: x.authorName, attachments: atts.filter((a) => a.messageId === x.m.id) })),
       attachments: atts.filter((a) => !a.messageId),
+      sla: policy ? {
+        policy: policy.name,
+        firstResponseDueAt: row.t.firstResponseDueAt, resolutionDueAt: row.t.resolutionDueAt,
+        firstResponseMet: slaEvents.some((e) => e.kind === "first_response_met"), firstResponseBreachedAt: row.t.firstResponseBreachedAt,
+        resolutionBreachedAt: row.t.resolutionBreachedAt, paused: !!row.t.slaPausedAt, escalatedAt: row.t.escalatedAt,
+      } : null,
+      form: form ? { name: form.name, version: form.version, answers: form.fields.map((f) => ({ key: f.key, label: f.label, type: f.type, value: row.t.customFields[f.key] ?? null })) } : null,
+      portalAccess,
       links: links
         .filter((l) => (l.orderId ? seeOrders : seeLead(l.leadOwner)))
         .map((l) => ({ id: l.id, type: l.orderId ? ("order" as const) : ("lead" as const), recordId: (l.orderId ?? l.leadId)!, label: l.orderId ? `ORD-${l.orderNumber}` : `LEAD-${l.leadNumber} · ${l.leadTitle}` })),
@@ -617,6 +645,15 @@ export async function getSupportStats(ctx: OrgContext, opts: { since?: Date; unt
         awaitingReply: sql<number>`count(*) filter (where ${supportTickets.statusCategory} in ('new','open','escalated') and ${supportTickets.lastCustomerMessageAt} is not null and (${supportTickets.firstRespondedAt} is null or ${supportTickets.lastCustomerMessageAt} > ${supportTickets.firstRespondedAt}))::int`,
         resolved: sql<number>`count(*) filter (where ${supportTickets.resolvedAt} >= ${since}::timestamptz and ${supportTickets.resolvedAt} < ${until}::timestamptz)::int`,
         created: sql<number>`count(*) filter (where ${supportTickets.createdAt} >= ${since}::timestamptz and ${supportTickets.createdAt} < ${until}::timestamptz)::int`,
+        slaAttention: sql<number>`count(*) filter (where ${supportTickets.statusCategory} in ('new','open','pending_customer','pending_internal','escalated') and (${NEXT_DUE} < now() + interval '1 hour' or (${supportTickets.firstResponseBreachedAt} is not null and ${supportTickets.firstRespondedAt} is null) or ${supportTickets.resolutionBreachedAt} is not null))::int`,
+        slaOverdue: sql<number>`count(*) filter (where ${supportTickets.statusCategory} in ('new','open','pending_customer','pending_internal','escalated') and (${NEXT_DUE} < now() or (${supportTickets.firstResponseBreachedAt} is not null and ${supportTickets.firstRespondedAt} is null) or ${supportTickets.resolutionBreachedAt} is not null))::int`,
+        // First reply: tickets created in the period whose clock is decided (answered, or already late).
+        frDecided: sql<number>`count(*) filter (where ${supportTickets.createdAt} >= ${since}::timestamptz and ${supportTickets.createdAt} < ${until}::timestamptz and ${supportTickets.firstResponseDueAt} is not null and (${supportTickets.firstRespondedAt} is not null or ${supportTickets.firstResponseBreachedAt} is not null or ${supportTickets.firstResponseDueAt} < now()))::int`,
+        frMet: sql<number>`count(*) filter (where ${supportTickets.createdAt} >= ${since}::timestamptz and ${supportTickets.createdAt} < ${until}::timestamptz and ${supportTickets.firstResponseDueAt} is not null and ${supportTickets.firstRespondedAt} is not null and ${supportTickets.firstResponseBreachedAt} is null)::int`,
+        // Resolution: tickets resolved in the period that had a policy.
+        resDecided: sql<number>`count(*) filter (where ${supportTickets.resolvedAt} >= ${since}::timestamptz and ${supportTickets.resolvedAt} < ${until}::timestamptz and ${supportTickets.slaPolicyId} is not null)::int`,
+        resMet: sql<number>`count(*) filter (where ${supportTickets.resolvedAt} >= ${since}::timestamptz and ${supportTickets.resolvedAt} < ${until}::timestamptz and ${supportTickets.slaPolicyId} is not null and ${supportTickets.resolutionBreachedAt} is null)::int`,
+        withPolicy: sql<number>`count(*) filter (where ${supportTickets.slaPolicyId} is not null)::int`,
         medianFirstResponseMin: sql<number | null>`(percentile_cont(0.5) within group (order by extract(epoch from (${supportTickets.firstRespondedAt} - ${supportTickets.createdAt})) / 60) filter (where ${supportTickets.firstRespondedAt} >= ${since}::timestamptz and ${supportTickets.firstRespondedAt} < ${until}::timestamptz))::float`,
       })
       .from(supportTickets)

@@ -75,9 +75,9 @@ export const statusInputSchema = z.object({
 });
 export const typeInputSchema = z.object({ name: z.string().trim().min(1, "Enter a name").max(60) });
 
-export const TICKET_VIEWS = ["mine", "unassigned", "open", "waiting", "escalated", "resolved", "closed", "all"] as const;
+export const TICKET_VIEWS = ["mine", "unassigned", "open", "sla", "waiting", "escalated", "resolved", "closed", "all"] as const;
 export const VIEW_LABELS: Record<(typeof TICKET_VIEWS)[number], string> = {
-  mine: "My open", unassigned: "Unassigned", open: "All open", waiting: "Waiting", escalated: "Escalated", resolved: "Resolved", closed: "Closed", all: "All tickets",
+  mine: "My open", unassigned: "Unassigned", open: "All open", sla: "SLA: overdue & due soon", waiting: "Waiting", escalated: "Escalated", resolved: "Resolved", closed: "Closed", all: "All tickets",
 };
 export const ticketFiltersSchema = z.object({
   view: z.enum(TICKET_VIEWS).catch("open"),
@@ -87,7 +87,7 @@ export const ticketFiltersSchema = z.object({
   type: uuid.optional().catch(undefined),
   customer: uuid.optional().catch(undefined),
   order: uuid.optional().catch(undefined),
-  sort: z.enum(["activity", "newest", "oldest", "priority"]).catch("activity"),
+  sort: z.enum(["activity", "newest", "oldest", "priority", "due"]).catch("activity"),
   page: z.coerce.number().int().min(1).max(10000).catch(1),
   pageSize: z.coerce.number().int().refine((n) => [25, 50, 100].includes(n)).catch(25),
 });

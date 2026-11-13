@@ -1,6 +1,6 @@
 # Progress & Phase Status
 
-_Last updated: 2026-11-12 (Phase 3)_
+_Last updated: 2026-11-12 (Phase 7)_
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -11,9 +11,9 @@ _Last updated: 2026-11-12 (Phase 3)_
 | **4** | **Commerce** | ✅ **Implemented and verified** |
 | **5** | **Support core** | ✅ **Implemented and verified** |
 | — | **SalesGel rebrand + landing dashboard** (requested brief) | ✅ **Implemented and verified** |
-| 6 | Commerce integrations (Shopify, payments, job infrastructure) | ⏳ Next |
-| 7 | Support forms, portal, SLA, routing | Not started |
-| 8 | Unified inbox | Not started |
+| **6** | **Commerce integrations (Shopify, Stripe payment links, job infrastructure)** | ✅ **Implemented and verified** (live provider test pending credentials) |
+| **7** | **Support forms, portal, SLA, routing** | ✅ **Implemented and verified** |
+| 8 | Unified inbox | ⏳ Next |
 | 9 | Marketing & automation | Not started |
 | 10 | Analytics, knowledge base | Not started |
 | 11 | Billing & production hardening | Not started |
@@ -289,3 +289,35 @@ Also fixed in this phase: three timing-sensitive Phase 3 E2E steps (acting durin
 
 ### Not yet implemented (later phases)
 - WooCommerce and other store platforms; Inbox and channel connections (Phase 8); automations reacting to order events (Phase 9).
+
+---
+
+## Phase 7 completion report: Support forms, customer portal, SLAs and routing
+
+### Implemented and verified
+
+| Area | What exists | Verified by |
+|---|---|---|
+| Data model | business_hours, holidays, sla_policies, ticket_sla_events (append-only), ticket_routing_rules, team_assignment_cursors, ticket_forms, ticket_form_versions (append-only), support_portals, portal_access_tokens (hashed), portal_submissions; SLA and form columns on tickets. All under forced RLS with composite tenant FKs. portal_routes (slug → workspace) holds no tenant data | Migrations 0017–0018; integration (cross-tenant, edits to published versions refused by the database) |
+| Business hours | Weekly schedule with split shifts per day, workspace timezone, holidays. SLA maths is DST-safe (each boundary computed from local wall time) | Unit (weekends, holidays, split shifts, DST in both directions, inverse property) + integration + E2E |
+| SLA policies | Ordered policies matched by priority, channel and ticket type; first-reply and resolution targets per priority ("30m", "4h", "2d"); business-hours or 24/7 clock. Applied on creation and re-applied when priority/type changes or policies/hours change | Integration + E2E |
+| SLA clocks | First reply met/missed on the first staff reply. The resolution clock pauses while waiting on the customer (and when resolved) and resumes with the paused time added. Background checks at each due time record breaches, notify the assignee (or triagers when unassigned) and optionally escalate once (escalated status, managers alerted). Stale checks are ignored. Display is computed live so it's correct even if the worker hasn't run yet | Integration (pause/resume arithmetic, breach + escalation + notifications, stale checks) |
+| Agent views | SLA card on every ticket (met / on track / due soon / overdue / missed / paused), SLA column in the ticket list, "SLA: overdue & due soon" view, "Next SLA due" sort. Support Dashboard: first reply within SLA and resolved within SLA (30 days), overdue count; landing dashboard's Overdue tile is now real | Integration + E2E |
+| Routing rules | Ordered rules, first match wins. Conditions: keywords in subject/message, channel, priority, type, form, customer tags. Actions: team, assign to a person or round robin within a team (only active members who can work tickets), priority, type, tags. Staff-created tickets keep what the creator chose; portal tickets get every action. Match counts shown | Integration + E2E |
+| Ticket forms | Builder with 10 answer types (short/long text, email, phone, number, dropdown, multi-choice, checkbox, date, order number), required flags, help text, reordering. Drafts vs immutable published versions; each ticket keeps the exact version and answers; answers shown on the ticket | Integration + E2E |
+| Customer portal | Public page at `/portal/<address>`: choose a form, submit; customer matched by email or created as provisional; order numbers linked only if the order belongs to that customer. Private follow-up link (only a hash stored, 120-day expiry, no-referrer, noindex) showing status in customer words and the public conversation — never internal notes. Customers can reply; that reopens the ticket and notifies the assignee. Honeypot and per-IP/per-email hourly limits | Integration (isolation, link expiry, other-portal links, notes hidden, rate limits) + E2E |
+| Honesty | Replies on portal tickets are labelled "Visible in customer portal"; other replies still say "Not sent to customer" until channels exist (Phase 8) | E2E |
+| Settings | Settings → Support now has Statuses & types, Business hours, SLA policies, Routing, Forms and Customer portal (support configurators only); everything audited | Integration (permissions) + E2E |
+
+**Test totals:** 188 unit/integration tests and 49 end-to-end tests, all passing, along with lint, typecheck and the production build.
+
+### Implemented but not fully tested
+- Re-applying SLAs after a policy or hours change touches up to 2,000 open tickets inside the save; larger desks should move this to a background job.
+- "At risk" means due within the next hour (fixed); there is no separate warning notification before a breach.
+
+### Blocked by external setup
+- **Emailing customers their portal link and replies** needs an email provider (Phase 8). Until then the link is shown on screen after submitting, with a prompt to save it.
+- Breach checks run right after app activity and in the daily cron (Vercel Hobby). Ticket views compute overdue live, but notifications/escalation for a quiet workspace can lag until the next request. A paid Vercel plan (or an external scheduler hitting `/api/cron/worker`) makes this minute-accurate.
+
+### Not yet implemented (later phases)
+- Attachments on portal submissions, conditional form fields, CSAT surveys and knowledge-base suggestions in the portal (Phase 10); portal sign-in for customers to see all their tickets.

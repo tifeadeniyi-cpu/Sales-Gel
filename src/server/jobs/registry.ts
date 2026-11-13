@@ -9,6 +9,7 @@ export const JOB_HANDLERS: Record<string, JobHandler> = {
   "task.reminder": async (j) => (await import("@/domains/tasks/reminders")).runTaskReminder(j),
   "integration.webhook": async (j) => (await import("@/domains/integrations/webhooks")).processWebhookJob(j),
   "shopify.sync": async (j) => (await import("@/domains/integrations/shopify/sync")).runShopifySync(j),
+  "support.sla_check": async (job) => (await import("@/domains/support/sla")).runSlaCheck(job),
   "shopify.setup": async (j) => (await import("@/domains/integrations/shopify/connect")).runShopifySetup(j),
 };
 

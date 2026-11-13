@@ -120,6 +120,20 @@
       "when": 1794540000000,
       "tag": "0016_fix_signal_work",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794542735171,
+      "tag": "0017_support_sla_forms_portal",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794542736171,
+      "tag": "0018_support_phase7_rls",
+      "breakpoints": true
     }
   ]
 }

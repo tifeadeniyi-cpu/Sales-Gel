@@ -13,7 +13,7 @@ export interface NavItem {
   description: string;
 }
 
-export const CURRENT_PHASE = 6;
+export const CURRENT_PHASE = 7;
 
 /** Primary navigation follows the SalesGel brief; secondary tools live under "More". */
 export const NAV_GROUPS: { label: string; collapsible?: boolean; items: NavItem[] }[] = [
@@ -47,8 +47,8 @@ export const NAV_GROUPS: { label: string; collapsible?: boolean; items: NavItem[
       { key: "team", label: "Team & Permissions", path: "team", icon: "ShieldCheck", anyOf: ["members.read"], phase: 1, description: "Members, roles and teams." },
       { key: "integrations", label: "Apps & Integrations", path: "integrations", icon: "Plug", anyOf: ["integrations.read"], phase: 6, description: "Shopify, Stripe, email and messaging connections." },
       { key: "support-inbox", label: "Support Inbox", path: "support/inbox", icon: "MessagesSquare", anyOf: ["tickets.read", "tickets.read_assigned"], phase: 8, description: "Support conversations across channels." },
-      { key: "forms", label: "Ticket Forms & Fields", path: "support/forms", icon: "FileInput", anyOf: ["support.configure"], phase: 7, description: "Custom intake forms with conditional fields." },
-      { key: "workflows", label: "Support Workflows", path: "support/workflows", icon: "Workflow", anyOf: ["support.configure"], phase: 7, description: "Routing, SLAs and escalation." },
+      { key: "forms", label: "Ticket Forms & Portal", path: "settings/support/forms", icon: "FileInput", anyOf: ["support.configure"], phase: 7, description: "Intake forms and the customer support portal." },
+      { key: "workflows", label: "SLAs & Routing", path: "settings/support/sla", icon: "Workflow", anyOf: ["support.configure"], phase: 7, description: "Routing, SLAs and escalation." },
       { key: "segments", label: "Customer Segments", path: "segments", icon: "Filter", anyOf: ["segments.manage", "campaigns.read"], phase: 9, description: "Dynamic audiences built from rules." },
       { key: "campaigns", label: "Campaigns", path: "campaigns", icon: "Megaphone", anyOf: ["campaigns.read"], phase: 9, description: "Consent-aware email and messaging campaigns." },
       { key: "support-reports", label: "Support Reports", path: "support/reports", icon: "BarChart3", anyOf: ["reports.read"], phase: 10, description: "Response times, SLA compliance and workload." },

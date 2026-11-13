@@ -6,7 +6,7 @@ export function SettingsTabs({ orgSlug, active, showAudit, showSupport }: { orgS
     { key: "general", label: "General", href: base },
     { key: "customers", label: "Customer fields & tags", href: `${base}/customers` },
   ];
-  if (showSupport) tabs.push({ key: "support", label: "Ticket statuses & types", href: `${base}/support` });
+  if (showSupport) tabs.push({ key: "support", label: "Support", href: `${base}/support` });
   tabs.push({ key: "notifications", label: "Notifications", href: `${base}/notifications` });
   if (showAudit) tabs.push({ key: "audit", label: "Security & audit log", href: `${base}/audit` });
   return <LinkTabs active={active} tabs={tabs} />;
